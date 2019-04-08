@@ -4,6 +4,8 @@ import com.ugeez.timesheet.model.*;
 import com.ugeez.timesheet.repository.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.repository.CrudRepository;
@@ -19,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class FactoryService {
@@ -93,6 +96,11 @@ public class FactoryService {
         return workRecords.stream().mapToDouble(item -> item.calCost()).sum();
     }
 
+    public Double calCompanyWorkCostByDate(Long companyId, Date end) {
+        List<WorkRecord> workRecords = workRecordRepository.findByProjectCompanyIdAndDateIsLessThanEqual(companyId, end);
+        return workRecords.stream().mapToDouble(item -> item.calCost()).sum();
+    }
+
     public Double gainCompanyBalance(Long id) {
         Company company = gainEntityWithExistsChecking(Company.class, id);
 
@@ -101,6 +109,21 @@ public class FactoryService {
 
         // 遍历此公司的所有支付, 获得总收入
         List<Payment> paymentList = paymentRepository.findByCompanyId(id);
+        Double totalIncome = paymentList.stream().mapToDouble(item -> item.getAmount()).sum();
+
+        // 总收入 - 总花费 = balance
+        return totalIncome - totalCost;
+    }
+
+    public Double gainCompanyBalanceByDate(Long id, Date end) {
+        end = new Date(end.getTime() + (24 * 3600 * 1000));
+        Company company = gainEntityWithExistsChecking(Company.class, id);
+
+        // 遍历此公司的所有项目, 获得总花费
+        Double totalCost = calCompanyWorkCostByDate(id, end);
+
+        // 遍历此公司的所有支付, 获得总收入
+        List<Payment> paymentList = paymentRepository.findByCompanyIdAndDateIsLessThanEqual(id, end);
         Double totalIncome = paymentList.stream().mapToDouble(item -> item.getAmount()).sum();
 
         // 总收入 - 总花费 = balance
@@ -191,9 +214,6 @@ public class FactoryService {
         Worker worker = new Worker(null, user, project, hourCosts, hourCommissions);
 
         project.addWorker(worker);
-
-        // todo 为什么注释掉下面一句后验证通不过worker的hourCosts, hourCommissions为空?
-//        projectRepository.save(project);
     }
 
     public void removeWorkerFromProject(Long id, Long userId) {
@@ -229,7 +249,7 @@ public class FactoryService {
         }
 
         //如果date <= 项目所属company的workRecordFixedDate, 则不允许
-        if (dto.date.compareTo(project.gainCompanyWorkRecordFixedDate()) <= 0) {
+        if (dto.date.compareTo(project.getCompany().gainWorkRecordFixedDate()) <= 0) {
             throw new RuntimeException("开始时间不能早于或等于项目所属公司的最后结算日期!");
         }
 
@@ -240,7 +260,7 @@ public class FactoryService {
         Project project = gainEntityWithExistsChecking(Project.class, projectId);
 
         //如果date <= 项目所属company的workRecordFixedDate, 则不允许
-        if (start.compareTo(project.gainCompanyWorkRecordFixedDate()) <= 0) {
+        if (start.compareTo(project.getCompany().gainWorkRecordFixedDate()) <= 0) {
             throw new RuntimeException("删除记录开始时间不能早于或等于项目所属公司的最后结算日期!");
         }
 
@@ -268,7 +288,7 @@ public class FactoryService {
         }
 
         //如果date <= user.getLastSettlementDate(), 则不允许
-        if (dto.date.compareTo(user.getLastSettlementDate()) <= 0) {
+        if (dto.date.compareTo(user.gainLastSettlementDate()) <= 0) {
             throw new RuntimeException("开始时间不能早于或等于用户的最后结算日期!");
         }
 
@@ -280,7 +300,7 @@ public class FactoryService {
         User user = gainEntityWithExistsChecking(User.class, userId);
 
         //如果date <= user.getLastSettlementDate(), 则不允许
-        if (start.compareTo(user.getLastSettlementDate()) <= 0) {
+        if (start.compareTo(user.gainLastSettlementDate()) <= 0) {
             throw new RuntimeException("开始时间不能早于或等于用户的最后结算日期!");
         }
 
@@ -338,7 +358,7 @@ public class FactoryService {
 
         WorkRecord endWorkRecord = workRecord.get();
 
-        // 如果工作记录start的24:00则以天为单位分开
+        // todo 如果工作记录start的24:00则以天为单位分开
 
         endWorkRecord.setEnd(dto.end);
         endWorkRecord.setNote(dto.note);
@@ -377,6 +397,12 @@ public class FactoryService {
     // 支付
     public Payment genPayment(NewPaymentDto dto) {
         Company company = gainEntityWithExistsChecking(Company.class, dto.companyId);
+
+        // 只允许添加结算日期之后的payment
+        if (company.gainWorkRecordFixedDate().compareTo(dto.getDate()) >= 0) {
+            throw new RuntimeException("支付时间小于等于公司结算日期, 不允许添加!");
+        }
+
         return new Payment(null, dto.date, dto.amount, company);
     }
 
@@ -387,6 +413,13 @@ public class FactoryService {
 
     public void deletePayment(Long id) {
         Payment payment = gainEntityWithExistsChecking(Payment.class, id);
+        Company company = payment.getCompany();
+
+        // 只允许删除结算日期之后的payment
+        if (company.gainWorkRecordFixedDate().compareTo(payment.gainDate()) >= 0) {
+            throw new RuntimeException("支付时间小于等于公司结算日期, 不允许删除!");
+        }
+
         paymentRepository.delete(payment);
     }
 
@@ -417,4 +450,57 @@ public class FactoryService {
         userRepository.save(user);
     }
     // end 用户
+
+    // workRecord
+    public void deleteWorkRecord(Long id) {
+        WorkRecord workRecord = gainEntityWithExistsChecking(WorkRecord.class, id);
+
+        // 判断是否可以删除
+        // 相关Company workRecordFixedDate
+        Company company = workRecord.getProject().getCompany();
+        if (company.gainWorkRecordFixedDate().compareTo(workRecord.gainDate()) >= 0) {
+            throw new RuntimeException("工作记录的时间早于所属公司的结算时间, 不能修改!");
+        }
+
+        // 相关User lastSettlementDate
+        User user = workRecord.getUser();
+        if (user.gainLastSettlementDate().compareTo(workRecord.gainDate()) >= 0) {
+            throw new RuntimeException("工作记录的时间早于所属用户的结算时间, 不能修改!");
+        }
+        // end 判断是否可以删除
+
+        workRecordRepository.delete(workRecord);
+    }
+    // end workRecord
+
+    // report
+    public JSONObject genReport(Long companyId, Date start, Date end) throws JSONException {
+        // 取得start到end之间的工作记录
+        List<WorkRecord> workRecords = workRecordRepository.findByProjectCompanyIdAndDateIsGreaterThanEqualAndDateIsLessThanEqual(companyId, start, end);
+        List<String> wordRecordsReport = workRecords.stream().map(item -> "" + item + ", " +  item.calCost()).collect(Collectors.toList());
+
+        // 取得start的balance
+        Double startBalance = gainCompanyBalanceByDate(companyId, new Date(start.getTime() - (24 * 3600 * 1000)));
+
+        // 取得end的balance
+        Double endBalance = gainCompanyBalanceByDate(companyId, end);
+
+        // 取得start到end中的支付
+        List<Payment> paymentReport = paymentRepository.findByCompanyIdAndDateIsGreaterThanEqualAndDateIsLessThanEqual(companyId, start, end);
+
+        JSONObject jsonObject = new JSONObject();
+
+        jsonObject.put("日期范围", start + "到" + end);
+
+        jsonObject.put("期初Balance", startBalance);
+
+        jsonObject.put("充值", paymentReport);
+
+        jsonObject.put("花费", wordRecordsReport);
+
+        jsonObject.put("期末Balance", endBalance);
+
+        return jsonObject;
+    }
+    // end report
 }

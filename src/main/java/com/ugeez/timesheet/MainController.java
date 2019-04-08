@@ -1,5 +1,7 @@
 package com.ugeez.timesheet;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ugeez.timesheet.model.Project;
 import com.ugeez.timesheet.model.User;
 import com.ugeez.timesheet.model.WorkRecord;
@@ -8,6 +10,8 @@ import com.ugeez.timesheet.repository.UserRepository;
 import com.ugeez.timesheet.repository.WorkRecordRepository;
 import com.ugeez.timesheet.service.FactoryService;
 import lombok.extern.slf4j.Slf4j;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.transaction.Transactional;
 import javax.validation.Valid;
 import java.util.Date;
+import java.util.List;
 
 @Slf4j
 @RequestMapping("/")
@@ -114,6 +119,10 @@ public class MainController {
         return "ok" + factoryService.gainCompanyBalance(id);
     }
 
+    @RequestMapping(value = "/company/{id}/checkBalance/{end}", method = RequestMethod.GET)
+    public String gainBalanceByDate(@PathVariable Long id, @PathVariable @DateTimeFormat(pattern = "yyyyMMdd") Date end) {
+        return "ok" + factoryService.gainCompanyBalanceByDate(id, end);
+    }
     // end 公司
 
     // 项目
@@ -193,24 +202,61 @@ public class MainController {
     // 工作记录
 
     // 开始工作记录
+    @RequestMapping(value = "/workRecord/startWork", method = RequestMethod.POST)
+    public String startWork(@Valid @RequestBody FactoryService.StartWorkDto dto) {
+        factoryService.startWork(dto);
+
+        return "ok";
+    }
 
     // 结束工作记录
+    @RequestMapping(value = "/workRecord/stopWork", method = RequestMethod.POST)
+    public String stopWork(@Valid @RequestBody FactoryService.StopWorkDto dto) {
+        factoryService.stopWork(dto);
+
+        return "ok";
+    }
 
     // 删除工作记录
+    @RequestMapping(value = "/workRecord/{id}", method = RequestMethod.DELETE)
+    public String deleteWorkRecord(@PathVariable Long id) {
+        factoryService.deleteWorkRecord(id);
+
+        return "ok";
+    }
 
     // end 工作记录
 
     // 支付记录
 
     // 添加支付记录
+    @RequestMapping(value = "/payment", method = RequestMethod.POST)
+    public String createPayment(@Valid @RequestBody FactoryService.NewPaymentDto dto) {
+        factoryService.createPayment(dto);
+
+        return "ok";
+    }
 
     // 删除支付记录
+    @RequestMapping(value = "/payment/{id}", method = RequestMethod.DELETE)
+    public String deletePayment(@PathVariable Long id) {
+        factoryService.deletePayment(id);
+
+        return "ok";
+    }
 
     // end 支付记录
 
     // 工作报告
 
     // 生成指定日期范围工作报告
+    @RequestMapping(value = "/report/{companyId}/{start}/{end}", method = RequestMethod.GET)
+    public String report(@PathVariable Long companyId, @PathVariable @DateTimeFormat(pattern = "yyyyMMdd") Date start, @PathVariable @DateTimeFormat(pattern = "yyyyMMdd") Date end) throws JSONException, JsonProcessingException {
+        ObjectMapper mapper = new ObjectMapper();
+        JSONObject jsonObject = factoryService.genReport(companyId, start, end);
+
+        return jsonObject.toString();
+    }
 
     // end 工作报告
 

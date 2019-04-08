@@ -27,6 +27,10 @@ public class HourCost extends PPTypeValidatableAbstract {
     @Getter
     private Double amount;
 
+    public HourCost gainCopy() {
+        return new HourCost(startDate, amount);
+    }
+
     @Override
     public String toString() {
         return "HourCost(" + startDate + ", " + amount + ")";

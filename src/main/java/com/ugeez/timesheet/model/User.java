@@ -1,10 +1,7 @@
 package com.ugeez.timesheet.model;
 
 import com.ugeez.timesheet.validator.PPEntityTypeValidatableAbstract;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -29,20 +26,31 @@ public class User extends PPEntityTypeValidatableAbstract {
     private String username;
 
     @NotEmpty
+    @Getter
+    @Setter
     private String password;
 
     @NotNull
     @PositiveOrZero
     @Getter
+    @Setter
     private Double hourCostAmount;
 
     @NotNull
     @PositiveOrZero
     @Getter
+    @Setter
     private Double hourCommissionAmount;
 
-    @Getter
+    @Setter
     private Date lastSettlementDate;
+    public Date gainLastSettlementDate(){
+        if (lastSettlementDate == null) {
+            return new Date(0);
+        } else {
+            return new Date(lastSettlementDate.getTime());
+        }
+    }
 
     @Override
     public String toString() {

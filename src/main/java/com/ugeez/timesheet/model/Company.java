@@ -24,12 +24,21 @@ public class Company extends PPEntityTypeValidatableAbstract {
 
     @Temporal(TemporalType.DATE)
     @Setter
-    @Getter
     private Date workRecordFixedDate;
 
+    public Date gainWorkRecordFixedDate() {
+        if (workRecordFixedDate == null) {
+            return new Date(0);
+        } else {
+            return new Date(workRecordFixedDate.getTime());
+        }
+    }
+
+    @Getter
     @Setter
     private String contactPerson;
 
+    @Getter
     @Setter
     private String phone;
 

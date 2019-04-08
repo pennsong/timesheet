@@ -24,6 +24,7 @@ public class Project extends PPEntityTypeValidatableAbstract {
     private String name;
 
     @ManyToOne(optional = false)
+    @Getter
     private Company company;
 
     @OneToMany(mappedBy = "project", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
@@ -92,10 +93,6 @@ public class Project extends PPEntityTypeValidatableAbstract {
 
     public Optional<Worker> gainWorkerByUserId(Long id) {
         return workers.stream().filter(item -> item.sameUser(id)).findFirst();
-    }
-
-    public Date gainCompanyWorkRecordFixedDate() {
-        return company.getWorkRecordFixedDate() == null ? new Date(0) : company.getWorkRecordFixedDate();
     }
 
     @Override

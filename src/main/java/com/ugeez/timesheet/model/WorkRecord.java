@@ -21,22 +21,34 @@ public class WorkRecord extends PPEntityTypeValidatableAbstract {
     @NotNull
     @Temporal(TemporalType.DATE)
     private Date date;
+    public Date gainDate() {
+        return new Date(date.getTime());
+    }
 
     @NotNull
     @Temporal(TemporalType.TIMESTAMP)
     private Date start;
+    public Date gainStart() {
+        return new Date(start.getTime());
+    }
 
     @Temporal(TemporalType.TIMESTAMP)
     @Setter
     private Date end;
+    public Date gainEnd() {
+        return new Date(end.getTime());
+    }
 
     @ManyToOne(optional = false)
+    @Getter
     private Project project;
 
+    @Getter
     @Setter
     private String note;
 
     @ManyToOne(optional = false)
+    @Getter
     private User user;
 
     public Double calCost() {
@@ -46,7 +58,7 @@ public class WorkRecord extends PPEntityTypeValidatableAbstract {
             throw new RuntimeException(this + "这条记录的用户还没有计费规则!");
         }
 
-        HourCost hourCost = worker.get().getHourCosts().stream().filter(item -> item.getStartDate().compareTo(date) <= 0).findFirst().get();
+        HourCost hourCost = worker.get().gainHourCosts().stream().filter(item -> item.getStartDate().compareTo(date) <= 0).findFirst().get();
         long miniutes = (end.getTime() - start.getTime()) / (1000 * 60);
         double minutesCost = hourCost.getAmount() / 60;
 

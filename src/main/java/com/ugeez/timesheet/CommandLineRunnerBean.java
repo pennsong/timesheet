@@ -12,8 +12,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
+import javax.transaction.Transactional;
+import java.util.Date;
+import java.util.List;
+
 @Slf4j
 @Component
+@Transactional
 public class CommandLineRunnerBean implements CommandLineRunner {
     @Autowired
     private FactoryService factoryService;
@@ -30,9 +35,11 @@ public class CommandLineRunnerBean implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
         // 新建用户
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < 10; i++) {
             factoryService.createUser("用户" + i, 500.0, 100.0);
         }
+
+        Iterable<User> users = userRepository.findAll();
 
         // 新建公司
         for (int i = 0; i < 2; i++) {
@@ -40,12 +47,46 @@ public class CommandLineRunnerBean implements CommandLineRunner {
             factoryService.createCompany(newCompanyDto);
         }
 
+        Iterable<Company> companies = companyRepository.findAll();
+
         // 新建项目
-        for (Company item: companyRepository.findAll()) {
+        for (Company item: companies) {
             for (int i = 0; i < 2; i++) {
                 FactoryService.NewProjectDto  newProjectDto = new FactoryService.NewProjectDto(item.getName() + "_项目" + i, item.getId());
                 factoryService.createProject(newProjectDto);
             }
         }
+
+        Iterable<Project> projects = projectRepository.findAll();
+
+        // 添加worker
+        for (Project project : projects) {
+            for (User user : users) {
+                FactoryService.NewWorkerDto newWorkerDto = new FactoryService.NewWorkerDto(user.getId(), project.getId(), null, null);
+                factoryService.addWorkerToProject(newWorkerDto);
+            }
+        }
+
+        Date date = new Date(0);
+        long start = (new Date()).getTime();
+        // 添加workRecord
+
+        for (Project project : projects) {
+            for (User user : users) {
+                for (int k = 0; k < 10; k++) {
+                    Date s = new Date(date.getTime() + (3600 * 1000 * 8) * k);
+                    Date e = new Date(date.getTime() + (3600 * 1000 * 8) * (k + 1));
+
+                    FactoryService.StartWorkDto startWorkDto = new FactoryService.StartWorkDto(user.getId(), project.getId(), s);
+                    factoryService.startWork(startWorkDto);
+
+                    FactoryService.StopWorkDto stopWorkDto = new FactoryService.StopWorkDto(user.getId(), project.getId(), e, "项目事项");
+                    factoryService.stopWork(stopWorkDto);
+                }
+            }
+        }
+
+        long end = (new Date()).getTime();
+        log.info("" + (end - start));
     }
 }

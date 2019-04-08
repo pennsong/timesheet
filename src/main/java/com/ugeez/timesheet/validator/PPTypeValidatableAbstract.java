@@ -12,7 +12,7 @@ import javax.validation.GroupSequence;
 public abstract class PPTypeValidatableAbstract implements PPTypeValidatable {
     @Override
     public boolean validate() {
-        log.info(this + "default type validate");
+//        log.info(this + "default type validate");
         return true;
     }
 }

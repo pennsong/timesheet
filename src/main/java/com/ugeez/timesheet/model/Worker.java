@@ -1,11 +1,13 @@
 package com.ugeez.timesheet.model;
 
+import com.sun.org.apache.bcel.internal.generic.RETURN;
 import com.ugeez.timesheet.validator.PPEntityTypeValidatableAbstract;
 import lombok.*;
 
 import javax.persistence.*;
 import javax.validation.Valid;
 import javax.validation.constraints.NotEmpty;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -20,32 +22,30 @@ public class Worker extends PPEntityTypeValidatableAbstract {
     private Long id;
 
     @ManyToOne(optional = false)
+    @Getter
     private User user;
 
     @ManyToOne(optional = false)
-    @Setter
+    @Getter
     private Project project;
 
     @NotEmpty
     @ElementCollection
     @Valid
     @OrderBy("startDate DESC")
-    @Getter
     private List<HourCost> hourCosts;
+    public List<HourCost> gainHourCosts() {
+       return hourCosts.stream().collect(Collectors.toList());
+    }
 
     @NotEmpty
     @ElementCollection
     @Valid
-    @Getter
+    @OrderBy("startDate DESC")
     private List<HourCommission> hourCommissions;
-
-//    public List<HourCost> getHourCosts() {
-//        return hourCosts.stream().collect(Collectors.toList());
-//    }
-//
-//    public List<HourCommission> getHourCommissions() {
-//        return hourCommissions.stream().collect(Collectors.toList());
-//    }
+    public List<HourCommission> gainHourCommissions() {
+       return hourCommissions.stream().collect(Collectors.toList());
+    }
 
     public Double calCostPerMin(Date date) {
         // 找出小于等于date的最后一条hourCost
