@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static java.time.temporal.ChronoUnit.DAYS;
+
 @Service
 public class FactoryService {
     @Autowired
@@ -101,7 +103,7 @@ public class FactoryService {
         return workRecords.stream().mapToDouble(item -> item.calCost()).sum();
     }
 
-    public Double calCompanyWorkCostByDate(Long companyId, Date end) {
+    public Double calCompanyWorkCostByDate(Long companyId, LocalDate end) {
         List<WorkRecord> workRecords = workRecordRepository.findByProjectCompanyIdAndDateIsLessThanEqual(companyId, end);
         return workRecords.stream().mapToDouble(item -> item.calCost()).sum();
     }
@@ -120,8 +122,7 @@ public class FactoryService {
         return totalIncome - totalCost;
     }
 
-    public Double gainCompanyBalanceByDate(Long id, Date end) {
-        end = new Date(end.getTime() + (24 * 3600 * 1000));
+    public Double gainCompanyBalanceByDate(Long id, LocalDate end) {
         Company company = gainEntityWithExistsChecking(Company.class, id);
 
         // 遍历此公司的所有项目, 获得总花费
@@ -373,6 +374,55 @@ public class FactoryService {
         }
     }
 
+    public void addWorkRecord(NewWorkRecordDto dto) {
+        if (!(dto.start.isBefore(dto.end))) {
+            throw new RuntimeException("开始时间要小于结束时间!");
+        }
+
+        User user = gainEntityWithExistsChecking(User.class, dto.userId);
+        Project project = gainEntityWithExistsChecking(Project.class, dto.projectId);
+
+        // 判断同一个公司的项目上如有重合时间段的workRecord, 则不允许添加
+        Long count = workRecordRepository.findByOverlapWorkRecords(project.getCompany().getId(), dto.userId, dto.getStart(), dto.getEnd());
+
+        if (count > 0) {
+            throw new RuntimeException("本用户在本公司的项目中有重合的工作记录, 不能添加!");
+        }
+
+        WorkRecord workRecord = new WorkRecord(null, dto.start.toLocalDate(), dto.start, dto.end, project, dto.note, user);
+
+        // 如果工作记录start的24:00则以天为单位分开
+        List<WorkRecord> workRecords;
+
+        workRecords = workRecord.splitWorkRecordToDay(dto.end);
+
+        workRecordRepository.save(workRecord);
+        
+        for (WorkRecord item: workRecords) {
+            workRecordRepository.save(item);
+        }
+    }
+
+    public void deleteWorkRecord(Long id) {
+        WorkRecord workRecord = gainEntityWithExistsChecking(WorkRecord.class, id);
+
+        // 判断是否可以删除
+        // 相关Company workRecordFixedDate
+        Company company = workRecord.getProject().getCompany();
+        if (workRecord.getDate().isBefore(company.getWorkRecordFixedDate())) {
+            throw new RuntimeException("工作记录的时间早于所属公司的结算时间, 不能修改!");
+        }
+
+        // 相关User lastSettlementDate
+        User user = workRecord.getUser();
+        if (workRecord.getDate().isBefore(user.getLastSettlementDate())) {
+            throw new RuntimeException("工作记录的时间早于所属用户的结算时间, 不能修改!");
+        }
+        // end 判断是否可以删除
+
+        workRecordRepository.delete(workRecord);
+    }
+
     @Data
     @AllArgsConstructor
     public static class StartWorkDto {
@@ -382,7 +432,6 @@ public class FactoryService {
         @NotNull
         private Long projectId;
 
-        @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
         private LocalDateTime start;
     }
 
@@ -395,7 +444,25 @@ public class FactoryService {
         @NotNull
         private Long projectId;
 
-        @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime end;
+
+        @NotEmpty
+        private String note;
+    }
+
+    @Data
+    @AllArgsConstructor
+    public static class NewWorkRecordDto {
+        @NotNull
+        private Long userId;
+
+        @NotNull
+        private Long projectId;
+
+        @NotNull
+        private LocalDateTime start;
+
+        @NotNull
         private LocalDateTime end;
 
         @NotEmpty
@@ -459,36 +526,14 @@ public class FactoryService {
     }
     // end 用户
 
-    // workRecord
-    public void deleteWorkRecord(Long id) {
-        WorkRecord workRecord = gainEntityWithExistsChecking(WorkRecord.class, id);
-
-        // 判断是否可以删除
-        // 相关Company workRecordFixedDate
-        Company company = workRecord.getProject().getCompany();
-        if (workRecord.getDate().isBefore(company.getWorkRecordFixedDate())) {
-            throw new RuntimeException("工作记录的时间早于所属公司的结算时间, 不能修改!");
-        }
-
-        // 相关User lastSettlementDate
-        User user = workRecord.getUser();
-        if (workRecord.getDate().isBefore(user.getLastSettlementDate())) {
-            throw new RuntimeException("工作记录的时间早于所属用户的结算时间, 不能修改!");
-        }
-        // end 判断是否可以删除
-
-        workRecordRepository.delete(workRecord);
-    }
-    // end workRecord
-
     // report
-    public JSONObject genReport(Long companyId, Date start, Date end) throws JSONException {
+    public JSONObject genReport(Long companyId, LocalDate start, LocalDate end) throws JSONException {
         // 取得start到end之间的工作记录
         List<WorkRecord> workRecords = workRecordRepository.findByProjectCompanyIdAndDateIsGreaterThanEqualAndDateIsLessThanEqual(companyId, start, end);
         List<String> wordRecordsReport = workRecords.stream().map(item -> "" + item + ", " +  item.calCost()).collect(Collectors.toList());
 
         // 取得start的balance
-        Double startBalance = gainCompanyBalanceByDate(companyId, new Date(start.getTime() - (24 * 3600 * 1000)));
+        Double startBalance = gainCompanyBalanceByDate(companyId, start.minus(1, DAYS));
 
         // 取得end的balance
         Double endBalance = gainCompanyBalanceByDate(companyId, end);
