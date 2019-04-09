@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotEmpty;
+import java.time.LocalDate;
 import java.util.*;
 
 @Slf4j
@@ -55,7 +56,7 @@ public class Project extends PPEntityTypeValidatableAbstract {
         }
     }
 
-    public void addHourCost(Long userId, Date start, Double amount) {
+    public void addHourCost(Long userId, LocalDate start, Double amount) {
         Optional<Worker> worker = workers.stream().filter(item -> item.sameUser(userId)).findFirst();
         if (!(worker.isPresent())) {
             throw new RuntimeException("这个用户不存在于workers中!");
@@ -64,7 +65,7 @@ public class Project extends PPEntityTypeValidatableAbstract {
         worker.get().addHourCost(start, amount);
     }
 
-    public void removeHourCost(Long userId, Date start) {
+    public void removeHourCost(Long userId, LocalDate start) {
         Optional<Worker> worker = workers.stream().filter(item -> item.sameUser(userId)).findFirst();
         if (!(worker.isPresent())) {
             throw new RuntimeException("这个用户不存在于workers中!");
@@ -73,7 +74,7 @@ public class Project extends PPEntityTypeValidatableAbstract {
         worker.get().removeHourCost(start);
     }
 
-    public void addHourCommission(Long userId, Date start, Double amount) {
+    public void addHourCommission(Long userId, LocalDate start, Double amount) {
         Optional<Worker> worker = workers.stream().filter(item -> item.sameUser(userId)).findFirst();
         if (!(worker.isPresent())) {
             throw new RuntimeException("这个用户不存在于workers中!");
@@ -82,7 +83,7 @@ public class Project extends PPEntityTypeValidatableAbstract {
         worker.get().addHourCommission(start, amount);
     }
 
-    public void removeHourCommission(Long userId, Date start) {
+    public void removeHourCommission(Long userId, LocalDate start) {
         Optional<Worker> worker = workers.stream().filter(item -> item.sameUser(userId)).findFirst();
         if (!(worker.isPresent())) {
             throw new RuntimeException("这个用户不存在于workers中!");

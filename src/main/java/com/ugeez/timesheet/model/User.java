@@ -10,6 +10,8 @@ import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Positive;
 import javax.validation.constraints.PositiveOrZero;
+import java.time.LocalDate;
+import java.time.Month;
 import java.util.Date;
 
 @Entity
@@ -43,12 +45,12 @@ public class User extends PPEntityTypeValidatableAbstract {
     private Double hourCommissionAmount;
 
     @Setter
-    private Date lastSettlementDate;
-    public Date gainLastSettlementDate(){
+    private LocalDate lastSettlementDate;
+    public LocalDate getLastSettlementDate(){
         if (lastSettlementDate == null) {
-            return new Date(0);
+            return LocalDate.of(1900, 1, 1);
         } else {
-            return new Date(lastSettlementDate.getTime());
+            return lastSettlementDate;
         }
     }
 

@@ -6,6 +6,7 @@ import lombok.*;
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Positive;
+import java.time.LocalDate;
 import java.util.Date;
 
 @Entity
@@ -18,11 +19,8 @@ public class Payment extends PPEntityTypeValidatableAbstract {
     private Long id;
 
     @NotNull
-    @Temporal(TemporalType.DATE)
-    private Date date;
-    public Date gainDate() {
-        return new Date(date.getTime());
-    }
+    @Getter
+    private LocalDate date;
 
     @NotNull
     @Positive

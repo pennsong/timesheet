@@ -13,8 +13,11 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 import javax.transaction.Transactional;
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
+
+import static java.time.temporal.ChronoUnit.HOURS;
 
 @Slf4j
 @Component
@@ -67,15 +70,15 @@ public class CommandLineRunnerBean implements CommandLineRunner {
             }
         }
 
-        Date date = new Date(0);
+        LocalDateTime dateTime = LocalDateTime.of(2000, 1, 1, 0, 0);
         long start = (new Date()).getTime();
         // 添加workRecord
 
         for (Project project : projects) {
             for (User user : users) {
-                for (int k = 0; k < 10; k++) {
-                    Date s = new Date(date.getTime() + (3600 * 1000 * 8) * k);
-                    Date e = new Date(date.getTime() + (3600 * 1000 * 8) * (k + 1));
+                for (int k = 0; k < 2; k++) {
+                    LocalDateTime s = dateTime.plus(8 * k, HOURS);
+                    LocalDateTime e = dateTime.plus(8 * k + 1, HOURS);
 
                     FactoryService.StartWorkDto startWorkDto = new FactoryService.StartWorkDto(user.getId(), project.getId(), s);
                     factoryService.startWork(startWorkDto);

@@ -11,6 +11,7 @@ import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Positive;
+import java.time.LocalDate;
 import java.util.Date;
 
 @Embeddable
@@ -18,9 +19,8 @@ import java.util.Date;
 @AllArgsConstructor
 public class HourCost extends PPTypeValidatableAbstract {
     @NotNull
-    @Temporal(TemporalType.DATE)
     @Getter
-    private Date startDate;
+    private LocalDate startDate;
 
     @NotNull
     @Positive

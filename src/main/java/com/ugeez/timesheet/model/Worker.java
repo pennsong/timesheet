@@ -7,6 +7,7 @@ import lombok.*;
 import javax.persistence.*;
 import javax.validation.Valid;
 import javax.validation.constraints.NotEmpty;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -47,37 +48,37 @@ public class Worker extends PPEntityTypeValidatableAbstract {
        return hourCommissions.stream().collect(Collectors.toList());
     }
 
-    public Double calCostPerMin(Date date) {
+    public Double calCostPerMin(LocalDate date) {
         // 找出小于等于date的最后一条hourCost
         HourCost hourCost = hourCosts.stream()
-                .filter(item -> item.getStartDate().compareTo(date) <= 0)
+                .filter(item -> item.getStartDate().isBefore(date))
                 .findFirst()
                 .get();
 
         return hourCost.getAmount() / 60;
     }
 
-    public void addHourCost(Date start, Double amount) {
+    public void addHourCost(LocalDate start, Double amount) {
         // 同一天只能有一个HourCost
-        hourCosts.removeIf(item -> item.getStartDate().compareTo(start) == 0);
+        hourCosts.removeIf(item -> item.getStartDate().isEqual(start));
         hourCosts.add(new HourCost(start, amount));
     }
 
-    public void removeHourCost(Date start) {
-        Boolean removed = hourCosts.removeIf(item -> item.getStartDate().compareTo(start) == 0);
+    public void removeHourCost(LocalDate start) {
+        Boolean removed = hourCosts.removeIf(item -> item.getStartDate().isEqual(start));
         
         if (!removed) {
             throw new RuntimeException("没有找到需要删除的HourCost");
         }
     }
 
-    public void addHourCommission(Date start, Double amount) {
+    public void addHourCommission(LocalDate start, Double amount) {
         // 同一天只能有一个HourCommission
         hourCommissions.removeIf(item -> item.getStartDate().compareTo(start) == 0);
         hourCommissions.add(new HourCommission(start, amount));
     }
 
-    public void removeHourCommission(Date start) {
+    public void removeHourCommission(LocalDate start) {
         Boolean removed = hourCommissions.removeIf(item -> item.getStartDate().compareTo(start) == 0);
 
         if (!removed) {

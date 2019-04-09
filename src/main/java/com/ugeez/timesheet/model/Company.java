@@ -5,6 +5,7 @@ import lombok.*;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotEmpty;
+import java.time.LocalDate;
 import java.util.Date;
 
 @Entity
@@ -22,15 +23,13 @@ public class Company extends PPEntityTypeValidatableAbstract {
     @Setter
     private String name;
 
-    @Temporal(TemporalType.DATE)
     @Setter
-    private Date workRecordFixedDate;
-
-    public Date gainWorkRecordFixedDate() {
+    private LocalDate workRecordFixedDate;
+    public LocalDate getWorkRecordFixedDate() {
         if (workRecordFixedDate == null) {
-            return new Date(0);
+            return LocalDate.of(1900, 1, 1);
         } else {
-            return new Date(workRecordFixedDate.getTime());
+            return workRecordFixedDate;
         }
     }
 

@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.transaction.Transactional;
 import javax.validation.Valid;
+import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;
 
@@ -38,47 +39,6 @@ public class MainController {
 
     @Autowired
     private WorkRecordRepository workRecordRepository;
-
-    @RequestMapping(value = "/test", method = RequestMethod.POST)
-    public String test() {
-        // 添加worker
-        for (Project project : projectRepository.findAll()) {
-            for (User user : userRepository.findAll()) {
-                FactoryService.NewWorkerDto newWorkerDto = new FactoryService.NewWorkerDto(user.getId(), project.getId(), null, null);
-                factoryService.addWorkerToProject(newWorkerDto);
-            }
-        }
-
-        return "ok";
-
-        // end 添加workRecord
-
-    }
-
-    @RequestMapping(value = "/test2", method = RequestMethod.POST)
-    public String test2() {
-        Date date = new Date(0);
-        // 添加workRecord
-        for (Project project : projectRepository.findAll()) {
-            for (User user : userRepository.findAll()) {
-                for (int k = 0; k < 6; k++) {
-                    Date s = new Date(date.getTime() + (3600 * 1000 * 8) * k);
-                    Date e = new Date(date.getTime() + (3600 * 1000 * 8) * (k + 1));
-
-                    FactoryService.StartWorkDto startWorkDto = new FactoryService.StartWorkDto(user.getId(), project.getId(), s);
-                    factoryService.startWork(startWorkDto);
-
-                    FactoryService.StopWorkDto stopWorkDto = new FactoryService.StopWorkDto(user.getId(), project.getId(), e, "项目事项");
-                    factoryService.stopWork(stopWorkDto);
-                }
-            }
-        }
-
-        return "ok";
-
-        // end 添加workRecord
-
-    }
 
     // 公司
     // 创建公司
@@ -107,7 +67,7 @@ public class MainController {
 
     // 设置公司最后一次报表相关工作记录截止日
     @RequestMapping(value = "/company/{id}/setWorkRecordFixedDate/{date}", method = RequestMethod.POST)
-    public String setCompanyWorkRecordFixedDate(@PathVariable Long id, @PathVariable @DateTimeFormat(pattern = "yyyyMMdd") Date date) {
+    public String setCompanyWorkRecordFixedDate(@PathVariable Long id, @PathVariable LocalDate date) {
         factoryService.setCompanyWorkRecordFixedDate(id, date);
 
         return "ok";
@@ -176,7 +136,7 @@ public class MainController {
 
     // 删除项目成员小时计费
     @RequestMapping(value = "/project/{id}/removeHourCostFromProject/{userId}", method = RequestMethod.POST)
-    public String removeHourCostFromProject(@PathVariable Long id, @PathVariable Long userId, @PathVariable @DateTimeFormat(pattern = "yyyyMMdd") Date date) {
+    public String removeHourCostFromProject(@PathVariable Long id, @PathVariable Long userId, @PathVariable LocalDate date) {
         factoryService.removeHourCost(id, userId, date);
 
         return "ok";
@@ -192,7 +152,7 @@ public class MainController {
 
     // 删除项目成员佣金计费
     @RequestMapping(value = "/project/{id}/removeHourCommissionFromProject/{userId}", method = RequestMethod.POST)
-    public String removeHourCommissionFromProject(@PathVariable Long id, @PathVariable Long userId, @PathVariable @DateTimeFormat(pattern = "yyyyMMdd") Date date) {
+    public String removeHourCommissionFromProject(@PathVariable Long id, @PathVariable Long userId, @PathVariable LocalDate date) {
         factoryService.removeHourCommission(id, userId, date);
 
         return "ok";

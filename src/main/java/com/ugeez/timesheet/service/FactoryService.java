@@ -1,9 +1,11 @@
 package com.ugeez.timesheet.service;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.ugeez.timesheet.model.*;
 import com.ugeez.timesheet.repository.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import org.apache.tomcat.jni.Local;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.springframework.beans.factory.ListableBeanFactory;
@@ -17,6 +19,9 @@ import javax.persistence.*;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Positive;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.Month;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -86,7 +91,7 @@ public class FactoryService {
         company.setPhone(dto.phone);
     }
 
-    public void setCompanyWorkRecordFixedDate(Long id, Date date) {
+    public void setCompanyWorkRecordFixedDate(Long id, LocalDate date) {
         Company company = gainEntityWithExistsChecking(Company.class, id);
         company.setWorkRecordFixedDate(date);
     }
@@ -206,10 +211,10 @@ public class FactoryService {
         }
 
         List<HourCost> hourCosts = new ArrayList<>();
-        hourCosts.add(new HourCost(new Date(0, 0, 0), dto.hourCostAmount));
+        hourCosts.add(new HourCost(LocalDate.of(1900, 1, 1), dto.hourCostAmount));
 
         List<HourCommission> hourCommissions = new ArrayList<>();
-        hourCommissions.add(new HourCommission(new Date(0, 0, 0), user.getHourCommissionAmount()));
+        hourCommissions.add(new HourCommission(LocalDate.of(1900, Month.JANUARY, 1), user.getHourCommissionAmount()));
 
         Worker worker = new Worker(null, user, project, hourCosts, hourCommissions);
 
@@ -245,22 +250,22 @@ public class FactoryService {
         Project project = gainEntityWithExistsChecking(Project.class, projectId);
 
         if (dto.date == null) {
-            dto.setDate(new Date());
+            dto.setDate(LocalDate.now());
         }
 
         //如果date <= 项目所属company的workRecordFixedDate, 则不允许
-        if (dto.date.compareTo(project.getCompany().gainWorkRecordFixedDate()) <= 0) {
+        if (dto.date.compareTo(project.getCompany().getWorkRecordFixedDate()) <= 0) {
             throw new RuntimeException("开始时间不能早于或等于项目所属公司的最后结算日期!");
         }
 
         project.addHourCost(userId, dto.date, dto.hourCostAmount);
     }
 
-    public void removeHourCost(Long userId, Long projectId, Date start) {
+    public void removeHourCost(Long userId, Long projectId, LocalDate start) {
         Project project = gainEntityWithExistsChecking(Project.class, projectId);
 
         //如果date <= 项目所属company的workRecordFixedDate, 则不允许
-        if (start.compareTo(project.getCompany().gainWorkRecordFixedDate()) <= 0) {
+        if (start.isBefore(project.getCompany().getWorkRecordFixedDate())) {
             throw new RuntimeException("删除记录开始时间不能早于或等于项目所属公司的最后结算日期!");
         }
 
@@ -273,8 +278,7 @@ public class FactoryService {
         @Positive
         private Double hourCostAmount;
 
-        @Temporal(TemporalType.DATE)
-        private Date date;
+        private LocalDate date;
     }
     // end HourCost
 
@@ -284,23 +288,23 @@ public class FactoryService {
         User user = gainEntityWithExistsChecking(User.class, userId);
 
         if (dto.date == null) {
-            dto.setDate(new Date());
+            dto.setDate(LocalDate.now());
         }
 
         //如果date <= user.getLastSettlementDate(), 则不允许
-        if (dto.date.compareTo(user.gainLastSettlementDate()) <= 0) {
+        if (dto.date.isBefore(user.getLastSettlementDate())) {
             throw new RuntimeException("开始时间不能早于或等于用户的最后结算日期!");
         }
 
         project.addHourCommission(userId, dto.date, dto.hourCommissionAmount);
     }
 
-    public void removeHourCommission(Long userId, Long projectId, Date start) {
+    public void removeHourCommission(Long userId, Long projectId, LocalDate start) {
         Project project = gainEntityWithExistsChecking(Project.class, projectId);
         User user = gainEntityWithExistsChecking(User.class, userId);
 
-        //如果date <= user.getLastSettlementDate(), 则不允许
-        if (start.compareTo(user.gainLastSettlementDate()) <= 0) {
+        //如果start <= user.getLastSettlementDate(), 则不允许
+        if (start.isBefore(user.getLastSettlementDate())) {
             throw new RuntimeException("开始时间不能早于或等于用户的最后结算日期!");
         }
 
@@ -313,9 +317,9 @@ public class FactoryService {
         @Positive
         private Double hourCommissionAmount;
 
-        @Temporal(TemporalType.DATE)
-        @DateTimeFormat(pattern = "yyyyMMdd")
-        private Date date;
+//        @Temporal(TemporalType.DATE)
+//        @DateTimeFormat(pattern = "yyyyMMdd")
+        private LocalDate date;
     }
     // end HourCommission
     // end 项目
@@ -323,7 +327,7 @@ public class FactoryService {
     // WorkRecord
     public void startWork(StartWorkDto dto) {
         if (dto.start == null) {
-            dto.start = new Date();
+            dto.start = LocalDateTime.now();
         }
 
         User user = gainEntityWithExistsChecking(User.class, dto.userId);
@@ -336,14 +340,14 @@ public class FactoryService {
             throw new RuntimeException("请先结束当前工作!");
         }
 
-        WorkRecord newWorkRecord = new WorkRecord(null, dto.start, dto.start, null, project, null, user);
+        WorkRecord newWorkRecord = new WorkRecord(null, dto.start.toLocalDate(), dto.start, null, project, null, user);
 
         workRecordRepository.save(newWorkRecord);
     }
 
     public void stopWork(StopWorkDto dto) {
         if (dto.end == null) {
-            dto.end = new Date();
+            dto.end = LocalDateTime.now();
         }
 
         User user = gainEntityWithExistsChecking(User.class, dto.userId);
@@ -357,11 +361,16 @@ public class FactoryService {
         }
 
         WorkRecord endWorkRecord = workRecord.get();
-
-        // todo 如果工作记录start的24:00则以天为单位分开
-
-        endWorkRecord.setEnd(dto.end);
         endWorkRecord.setNote(dto.note);
+
+        // 如果工作记录start的24:00则以天为单位分开
+        List<WorkRecord> workRecords;
+
+        workRecords = endWorkRecord.splitWorkRecordToDay(dto.end);
+
+        for (WorkRecord item: workRecords) {
+            workRecordRepository.save(item);
+        }
     }
 
     @Data
@@ -373,8 +382,8 @@ public class FactoryService {
         @NotNull
         private Long projectId;
 
-        @Temporal(TemporalType.TIMESTAMP)
-        private Date start;
+        @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime start;
     }
 
     @Data
@@ -386,8 +395,8 @@ public class FactoryService {
         @NotNull
         private Long projectId;
 
-        @Temporal(TemporalType.TIMESTAMP)
-        private Date end;
+        @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        private LocalDateTime end;
 
         @NotEmpty
         private String note;
@@ -399,7 +408,7 @@ public class FactoryService {
         Company company = gainEntityWithExistsChecking(Company.class, dto.companyId);
 
         // 只允许添加结算日期之后的payment
-        if (company.gainWorkRecordFixedDate().compareTo(dto.getDate()) >= 0) {
+        if (company.getWorkRecordFixedDate().isAfter(dto.getDate())) {
             throw new RuntimeException("支付时间小于等于公司结算日期, 不允许添加!");
         }
 
@@ -416,7 +425,7 @@ public class FactoryService {
         Company company = payment.getCompany();
 
         // 只允许删除结算日期之后的payment
-        if (company.gainWorkRecordFixedDate().compareTo(payment.gainDate()) >= 0) {
+        if (company.getWorkRecordFixedDate().isAfter(payment.getDate())) {
             throw new RuntimeException("支付时间小于等于公司结算日期, 不允许删除!");
         }
 
@@ -431,8 +440,7 @@ public class FactoryService {
         private Double amount;
 
         @NotNull
-        @Temporal(TemporalType.DATE)
-        private Date date;
+        private LocalDate date;
 
         @NotNull
         @Positive
@@ -458,13 +466,13 @@ public class FactoryService {
         // 判断是否可以删除
         // 相关Company workRecordFixedDate
         Company company = workRecord.getProject().getCompany();
-        if (company.gainWorkRecordFixedDate().compareTo(workRecord.gainDate()) >= 0) {
+        if (workRecord.getDate().isBefore(company.getWorkRecordFixedDate())) {
             throw new RuntimeException("工作记录的时间早于所属公司的结算时间, 不能修改!");
         }
 
         // 相关User lastSettlementDate
         User user = workRecord.getUser();
-        if (user.gainLastSettlementDate().compareTo(workRecord.gainDate()) >= 0) {
+        if (workRecord.getDate().isBefore(user.getLastSettlementDate())) {
             throw new RuntimeException("工作记录的时间早于所属用户的结算时间, 不能修改!");
         }
         // end 判断是否可以删除

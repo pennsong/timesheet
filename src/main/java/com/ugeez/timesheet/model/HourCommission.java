@@ -12,6 +12,7 @@ import javax.persistence.TemporalType;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Positive;
+import java.time.LocalDate;
 import java.util.Date;
 
 @Embeddable
@@ -19,9 +20,8 @@ import java.util.Date;
 @AllArgsConstructor
 public class HourCommission extends PPTypeValidatableAbstract {
     @NotNull
-    @Temporal(TemporalType.DATE)
     @Getter
-    private Date startDate;
+    private LocalDate startDate;
 
     @NotNull
     @Positive
