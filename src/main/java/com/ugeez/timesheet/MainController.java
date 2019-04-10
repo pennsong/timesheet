@@ -42,43 +42,6 @@ public class MainController {
     @Autowired
     private WorkRecordRepository workRecordRepository;
 
-    @RequestMapping(value = "/test", method = RequestMethod.POST)
-    public String test(@RequestParam("projectId") Long projectId, @RequestParam("data") String data) {
-        factoryService.gainEntityWithExistsChecking(Project.class, projectId);
-
-        String[] records = data.split("\n");
-        for (String item : records) {
-            log.info(item);
-
-            String[] fields = item.split("[ |\\t]+");
-            String username = fields[0].trim();
-
-            Optional<User> user = userRepository.findOneByUsernameEqualsIgnoreCase(username);
-            if (!(user.isPresent())) {
-                throw new RuntimeException(item + "中的" + username + "不存在!");
-            }
-
-            String dateStr = fields[1];
-            String[] dateArr = dateStr.split("/");
-            LocalDate date = LocalDate.of(Integer.parseInt(dateArr[0]), Integer.parseInt(dateArr[1]), Integer.parseInt(dateArr[2]));
-
-            String startStr = fields[2];
-            String[] startArr = startStr.split(":");
-            LocalDateTime start = LocalDateTime.of(date, LocalTime.of(Integer.parseInt(startArr[0]), Integer.parseInt(startArr[1])));
-
-            String endStr = fields[3];
-            String[] endArr = endStr.split(":");
-            LocalDateTime end = LocalDateTime.of(date, LocalTime.of(Integer.parseInt(endArr[0]), Integer.parseInt(endArr[1])));
-
-            String note = String.join(" ", Arrays.copyOfRange(fields, 4, fields.length));
-
-            FactoryService.NewWorkRecordDto newWorkRecordDto = new FactoryService.NewWorkRecordDto(user.get().getId(), projectId, start, end, note);
-            factoryService.createWorkRecord(newWorkRecordDto);
-        }
-
-        return "ok";
-    }
-
     // 公司
     // 创建公司
     @RequestMapping(value = "/company", method = RequestMethod.POST)
@@ -229,6 +192,44 @@ public class MainController {
     @RequestMapping(value = "/workRecord/{id}", method = RequestMethod.DELETE)
     public String deleteWorkRecord(@PathVariable Long id) {
         factoryService.deleteWorkRecord(id);
+
+        return "ok";
+    }
+
+    // 批量添加工作记录
+    @RequestMapping(value = "/workRecord/addBatchWorkRecord", method = RequestMethod.POST)
+    public String addBatchWorkRecord(@RequestParam("projectId") Long projectId, @RequestParam("data") String data) {
+        factoryService.gainEntityWithExistsChecking(Project.class, projectId);
+
+        String[] records = data.split("\n");
+        for (String item : records) {
+            log.info(item);
+
+            String[] fields = item.split("[ |\\t]+");
+            String username = fields[0].trim();
+
+            Optional<User> user = userRepository.findOneByUsernameEqualsIgnoreCase(username);
+            if (!(user.isPresent())) {
+                throw new RuntimeException(item + "中的" + username + "不存在!");
+            }
+
+            String dateStr = fields[1];
+            String[] dateArr = dateStr.split("/");
+            LocalDate date = LocalDate.of(Integer.parseInt(dateArr[0]), Integer.parseInt(dateArr[1]), Integer.parseInt(dateArr[2]));
+
+            String startStr = fields[2];
+            String[] startArr = startStr.split(":");
+            LocalDateTime start = LocalDateTime.of(date, LocalTime.of(Integer.parseInt(startArr[0]), Integer.parseInt(startArr[1])));
+
+            String endStr = fields[3];
+            String[] endArr = endStr.split(":");
+            LocalDateTime end = LocalDateTime.of(date, LocalTime.of(Integer.parseInt(endArr[0]), Integer.parseInt(endArr[1])));
+
+            String note = String.join(" ", Arrays.copyOfRange(fields, 4, fields.length));
+
+            FactoryService.NewWorkRecordDto newWorkRecordDto = new FactoryService.NewWorkRecordDto(user.get().getId(), projectId, start, end, note);
+            factoryService.createWorkRecord(newWorkRecordDto);
+        }
 
         return "ok";
     }
