@@ -4,6 +4,7 @@ import com.ugeez.timesheet.model.User;
 import com.ugeez.timesheet.model.WorkRecord;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -30,7 +31,7 @@ public interface WorkRecordRepository extends CrudRepository<WorkRecord, Long> {
             "or (w.end >= :start and w.end <= :end) " +
             "or (w.start <= :start and w.end >= :end)" +
             ")")
-    Long findByOverlapWorkRecords(Long companyId, Long userId, LocalDateTime start, LocalDateTime end);
+    Long findByOverlapWorkRecords(@Param("companyId") Long companyId, @Param("userId") Long userId, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     Optional<WorkRecord> findOneByUserIdAndEndIsNull(Long id);
 }
