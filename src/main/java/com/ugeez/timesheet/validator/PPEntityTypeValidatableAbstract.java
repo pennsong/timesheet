@@ -1,5 +1,6 @@
 package com.ugeez.timesheet.validator;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.Errors;
 
@@ -10,12 +11,14 @@ import javax.validation.ConstraintViolation;
 import javax.validation.Validation;
 import java.util.Set;
 
+@Slf4j
 @MappedSuperclass
 public abstract class PPEntityTypeValidatableAbstract extends PPTypeValidatableAbstract {
     @PrePersist
     @PreUpdate
     // 配合 spring.jpa.properties.javax.persistence.validation.mode=none 使用
     public void v() {
+//        log.info(this + "保存前校验");
         Set<ConstraintViolation<Object>> constraintViolations = Validation.buildDefaultValidatorFactory().getValidator().validate(this);
 
         Errors errors = new BeanPropertyBindingResult(this, "root");

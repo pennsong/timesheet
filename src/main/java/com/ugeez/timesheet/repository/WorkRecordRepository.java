@@ -2,8 +2,11 @@ package com.ugeez.timesheet.repository;
 
 import com.ugeez.timesheet.model.User;
 import com.ugeez.timesheet.model.WorkRecord;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -11,9 +14,23 @@ import java.util.Optional;
 public interface WorkRecordRepository extends CrudRepository<WorkRecord, Long> {
     List<WorkRecord> findByProjectCompanyId(Long id);
 
-    List<WorkRecord> findByProjectCompanyIdAndDateIsLessThanEqual(Long id, Date end);
+    List<WorkRecord> findByProjectCompanyIdAndDateIsLessThanEqual(Long id, LocalDate end);
 
-    List<WorkRecord> findByProjectCompanyIdAndDateIsGreaterThanEqualAndDateIsLessThanEqual(Long id, Date start, Date end);
+    List<WorkRecord> findByProjectCompanyIdAndDateIsGreaterThanEqualAndDateIsLessThanEqual(Long id, LocalDate start, LocalDate end);
+
+    @Query("select count(w) from " +
+            "WorkRecord w " +
+            "join w.project p " +
+            "join p.company c " +
+            "join w.user u " +
+            "where c.id = :companyId " +
+            "and u.id = :userId " +
+            "and (" +
+            "(w.start >= :start and w.start <= :end) " +
+            "or (w.end >= :start and w.end <= :end) " +
+            "or (w.start <= :start and w.end >= :end)" +
+            ")")
+    Long findByOverlapWorkRecords(Long companyId, Long userId, LocalDateTime start, LocalDateTime end);
 
     Optional<WorkRecord> findOneByUserIdAndEndIsNull(Long id);
 }

@@ -2,6 +2,7 @@ package com.ugeez.timesheet.model;
 
 import com.ugeez.timesheet.validator.PPEntityTypeValidatableAbstract;
 import lombok.*;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotEmpty;
@@ -16,6 +17,7 @@ import java.util.Optional;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.time.temporal.ChronoUnit.SECONDS;
 
+@Slf4j
 @Entity
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 @AllArgsConstructor
@@ -56,10 +58,10 @@ public class WorkRecord extends PPEntityTypeValidatableAbstract {
         }
 
         HourCost hourCost = worker.get().gainHourCosts().stream().filter(item -> item.getStartDate().isBefore(date)).findFirst().get();
-        long minutes = Duration.between(start, end).getSeconds();
-        double minutesCost = hourCost.getAmount() / 60;
+        long seconds = Duration.between(start, end).getSeconds();
+        double secondCost = hourCost.getAmount() / 3600;
 
-        return minutesCost * minutes;
+        return seconds * secondCost;
     }
 
     public List<WorkRecord> splitWorkRecordToDay(LocalDateTime endDateTime) {
@@ -72,7 +74,7 @@ public class WorkRecord extends PPEntityTypeValidatableAbstract {
 
         } else {
             // start那天23:59:59
-            end = start.plus(24 * 3600 - 1, SECONDS);
+            end = start.toLocalDate().atStartOfDay().plus(24 * 3600 - 1, SECONDS);
             for (int i = 0; i < days - 1; i++) {
                 LocalDateTime curStart = start.toLocalDate().plusDays(1).atTime(0, 0);
                 LocalDateTime curEnd = curStart.plusSeconds(24 * 3600 - 1);
@@ -88,5 +90,14 @@ public class WorkRecord extends PPEntityTypeValidatableAbstract {
     @Override
     public String toString() {
         return "WorkRecord(" + id + ", " + date + ", " + start + ", " + end + ", " + project.getName() + ", " + user.getUsername() + ", " + note + ")";
+    }
+
+    @Override
+    public boolean validate() {
+        if (end != null && !(start.isBefore(end))) {
+            throw new RuntimeException("开始时间要小于结束时间!");
+        }
+
+        return true;
     }
 }

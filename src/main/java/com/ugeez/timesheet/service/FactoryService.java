@@ -5,6 +5,7 @@ import com.ugeez.timesheet.model.*;
 import com.ugeez.timesheet.repository.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.apache.tomcat.jni.Local;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -76,9 +77,9 @@ public class FactoryService {
         return new Company(null, dto.name, null, dto.contactPerson, dto.phone);
     }
 
-    public void createCompany(NewCompanyDto dto) {
+    public Company createCompany(NewCompanyDto dto) {
         Company company = genCompany(dto);
-        companyRepository.save(company);
+        return companyRepository.save(company);
     }
 
     public void deleteCompany(Long id) {
@@ -165,9 +166,9 @@ public class FactoryService {
         return new Project(null, dto.name, company, null);
     }
 
-    public void createProject(NewProjectDto dto) {
+    public Project createProject(NewProjectDto dto) {
         Project project = genProject(dto);
-        projectRepository.save(project);
+        return projectRepository.save(project);
     }
 
     public void deleteProject(Long id) {
@@ -374,7 +375,7 @@ public class FactoryService {
         }
     }
 
-    public void addWorkRecord(NewWorkRecordDto dto) {
+    public void createWorkRecord(NewWorkRecordDto dto) {
         if (!(dto.start.isBefore(dto.end))) {
             throw new RuntimeException("开始时间要小于结束时间!");
         }
@@ -397,7 +398,7 @@ public class FactoryService {
         workRecords = workRecord.splitWorkRecordToDay(dto.end);
 
         workRecordRepository.save(workRecord);
-        
+
         for (WorkRecord item: workRecords) {
             workRecordRepository.save(item);
         }
@@ -479,7 +480,7 @@ public class FactoryService {
             throw new RuntimeException("支付时间小于等于公司结算日期, 不允许添加!");
         }
 
-        return new Payment(null, dto.date, dto.amount, company);
+        return new Payment(null, dto.date, dto.amount, company, dto.note);
     }
 
     public void createPayment(NewPaymentDto dto) {
@@ -512,6 +513,8 @@ public class FactoryService {
         @NotNull
         @Positive
         private Long companyId;
+
+        private String note;
     }
     // end 支付
 
@@ -520,9 +523,9 @@ public class FactoryService {
         return new User(null, username, "1", hourCostAmount, hourCommissionAmount, null);
     }
 
-    public void createUser(String username, Double hourCostAmount, Double hourCommissionAmount) {
+    public User createUser(String username, Double hourCostAmount, Double hourCommissionAmount) {
         User user = genUser(username, hourCostAmount, hourCommissionAmount);
-        userRepository.save(user);
+        return userRepository.save(user);
     }
     // end 用户
 

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ugeez.timesheet.model.Project;
 import com.ugeez.timesheet.model.User;
-import com.ugeez.timesheet.model.WorkRecord;
 import com.ugeez.timesheet.repository.ProjectRepository;
 import com.ugeez.timesheet.repository.UserRepository;
 import com.ugeez.timesheet.repository.WorkRecordRepository;
@@ -19,8 +18,10 @@ import org.springframework.web.bind.annotation.*;
 import javax.transaction.Transactional;
 import javax.validation.Valid;
 import java.time.LocalDate;
-import java.util.Date;
-import java.util.List;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.Arrays;
+import java.util.Optional;
 
 @Slf4j
 @RequestMapping("/")
@@ -39,6 +40,43 @@ public class MainController {
 
     @Autowired
     private WorkRecordRepository workRecordRepository;
+
+    @RequestMapping(value = "/test", method = RequestMethod.POST)
+    public String test(@RequestParam("projectId") Long projectId, @RequestParam("data") String data) {
+        factoryService.gainEntityWithExistsChecking(Project.class, projectId);
+
+        String[] records = data.split("\n");
+        for (String item : records) {
+            log.info(item);
+
+            String[] fields = item.split("[ |\\t]+");
+            String username = fields[0].trim();
+
+            Optional<User> user = userRepository.findOneByUsernameEqualsIgnoreCase(username);
+            if (!(user.isPresent())) {
+                throw new RuntimeException(item + "中的" + username + "不存在!");
+            }
+
+            String dateStr = fields[1];
+            String[] dateArr = dateStr.split("/");
+            LocalDate date = LocalDate.of(Integer.parseInt(dateArr[0]), Integer.parseInt(dateArr[1]), Integer.parseInt(dateArr[2]));
+
+            String startStr = fields[2];
+            String[] startArr = startStr.split(":");
+            LocalDateTime start = LocalDateTime.of(date, LocalTime.of(Integer.parseInt(startArr[0]), Integer.parseInt(startArr[1])));
+
+            String endStr = fields[3];
+            String[] endArr = endStr.split(":");
+            LocalDateTime end = LocalDateTime.of(date, LocalTime.of(Integer.parseInt(endArr[0]), Integer.parseInt(endArr[1])));
+
+            String note = String.join(" ", Arrays.copyOfRange(fields, 4, fields.length));
+
+            FactoryService.NewWorkRecordDto newWorkRecordDto = new FactoryService.NewWorkRecordDto(user.get().getId(), projectId, start, end, note);
+            factoryService.createWorkRecord(newWorkRecordDto);
+        }
+
+        return "ok";
+    }
 
     // 公司
     // 创建公司
@@ -80,7 +118,7 @@ public class MainController {
     }
 
     @RequestMapping(value = "/company/{id}/checkBalance/{end}", method = RequestMethod.GET)
-    public String gainBalanceByDate(@PathVariable Long id, @PathVariable @DateTimeFormat(pattern = "yyyyMMdd") Date end) {
+    public String gainBalanceByDate(@PathVariable Long id, @PathVariable LocalDate end) {
         return "ok" + factoryService.gainCompanyBalanceByDate(id, end);
     }
     // end 公司
@@ -177,6 +215,14 @@ public class MainController {
         return "ok";
     }
 
+    // 添加工作记录
+    @RequestMapping(value = "/workRecord", method = RequestMethod.POST)
+    public String createWorkRecord(@Valid @RequestBody FactoryService.NewWorkRecordDto dto) {
+        factoryService.createWorkRecord(dto);
+
+        return "ok";
+    }
+
     // 删除工作记录
     @RequestMapping(value = "/workRecord/{id}", method = RequestMethod.DELETE)
     public String deleteWorkRecord(@PathVariable Long id) {
@@ -211,7 +257,7 @@ public class MainController {
 
     // 生成指定日期范围工作报告
     @RequestMapping(value = "/report/{companyId}/{start}/{end}", method = RequestMethod.GET)
-    public String report(@PathVariable Long companyId, @PathVariable @DateTimeFormat(pattern = "yyyyMMdd") Date start, @PathVariable @DateTimeFormat(pattern = "yyyyMMdd") Date end) throws JSONException, JsonProcessingException {
+    public String report(@PathVariable Long companyId, @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate start, @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate end) throws JSONException, JsonProcessingException {
         ObjectMapper mapper = new ObjectMapper();
         JSONObject jsonObject = factoryService.genReport(companyId, start, end);
 

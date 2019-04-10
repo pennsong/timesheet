@@ -31,8 +31,11 @@ public class Payment extends PPEntityTypeValidatableAbstract {
     @Getter
     private Company company;
 
+    @Getter
+    private String note;
+
     @Override
     public String toString() {
-        return "Payment(" + company.getName() + ", " + amount + ", " + date + ")";
+        return "Payment(" + company.getName() + ", " + amount + ", " + date + ", " + note + ")";
     }
 }
