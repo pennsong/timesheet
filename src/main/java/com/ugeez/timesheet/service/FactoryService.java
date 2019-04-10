@@ -319,8 +319,6 @@ public class FactoryService {
         @Positive
         private Double hourCommissionAmount;
 
-//        @Temporal(TemporalType.DATE)
-//        @DateTimeFormat(pattern = "yyyyMMdd")
         private LocalDate date;
     }
     // end HourCommission

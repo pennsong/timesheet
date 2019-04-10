@@ -2,6 +2,7 @@ package com.ugeez.timesheet;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ugeez.timesheet.model.Company;
 import com.ugeez.timesheet.model.Project;
 import com.ugeez.timesheet.model.User;
 import com.ugeez.timesheet.repository.ProjectRepository;
@@ -103,10 +104,10 @@ public class MainController {
         return "ok";
     }
 
-    // 设置公司最后一次报表相关工作记录截止日
-    @RequestMapping(value = "/company/{id}/setWorkRecordFixedDate/{date}", method = RequestMethod.POST)
-    public String setCompanyWorkRecordFixedDate(@PathVariable Long id, @PathVariable LocalDate date) {
-        factoryService.setCompanyWorkRecordFixedDate(id, date);
+    // 设置最后一次公司结算日
+    @RequestMapping(value = "/company/{companyId}/setCompanyWorkRecordFixedDate/{date}", method = RequestMethod.POST)
+    public String setCompanyWorkRecordFixedDate(@PathVariable Long companyId, @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date) {
+        factoryService.setCompanyWorkRecordFixedDate(companyId, date);
 
         return "ok";
     }
@@ -117,6 +118,7 @@ public class MainController {
         return "ok" + factoryService.gainCompanyBalance(id);
     }
 
+    // 查看公司到指定日期预付款余额
     @RequestMapping(value = "/company/{id}/checkBalance/{end}", method = RequestMethod.GET)
     public String gainBalanceByDate(@PathVariable Long id, @PathVariable LocalDate end) {
         return "ok" + factoryService.gainCompanyBalanceByDate(id, end);
@@ -264,6 +266,19 @@ public class MainController {
         return jsonObject.toString();
     }
 
+    // 生成指定日期范围工作报告, 并设设置最后一次佣金结算相关工作记录截止日
+    @RequestMapping(value = "/realReport/{companyId}/{start}/{end}", method = RequestMethod.POST)
+    public String realReport(@PathVariable Long companyId, @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate start, @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate end) throws JSONException, JsonProcessingException {
+        ObjectMapper mapper = new ObjectMapper();
+        JSONObject jsonObject = factoryService.genReport(companyId, start, end);
+        Company company = factoryService.gainEntityWithExistsChecking(Company.class, companyId);
+        if (company.getWorkRecordFixedDate().isBefore(end)) {
+            factoryService.setCompanyWorkRecordFixedDate(companyId, end);
+        }
+
+        return jsonObject.toString();
+    }
+
     // end 工作报告
 
     // 用户
@@ -275,8 +290,6 @@ public class MainController {
     // 禁用用户
 
     // 启用用户
-
-    // 设置最后一次佣金结算相关工作记录截止日
 
     // end 用户
 }
