@@ -58,6 +58,9 @@ public class CommandLineRunnerBean implements CommandLineRunner {
        c1
        c2
        c3
+       c4
+       c5
+       c6
        */
         FactoryService.NewCompanyDto newCompanyDto = new FactoryService.NewCompanyDto("c1", null, null);
         Company c1 = factoryService.createCompany(newCompanyDto);
@@ -67,6 +70,15 @@ public class CommandLineRunnerBean implements CommandLineRunner {
 
         newCompanyDto = new FactoryService.NewCompanyDto("c3", null, null);
         Company c3 = factoryService.createCompany(newCompanyDto);
+
+        newCompanyDto = new FactoryService.NewCompanyDto("c4", null, null);
+        Company c4 = factoryService.createCompany(newCompanyDto);
+
+        newCompanyDto = new FactoryService.NewCompanyDto("c5", null, null);
+        Company c5 = factoryService.createCompany(newCompanyDto);
+
+        newCompanyDto = new FactoryService.NewCompanyDto("c6", null, null);
+        Company c6 = factoryService.createCompany(newCompanyDto);
 
 
         /*
@@ -106,16 +118,41 @@ public class CommandLineRunnerBean implements CommandLineRunner {
             },
             {
                 u2,
-                [
+                hourCost: [
                     {
                         1999/12/31,
                         2
+                    }
+                ],
+                hourCommission: [
+                    {
+                        1999/12/31,
+                        1
                     }
                 ]
             }
         ]
         c1p2 c1
         c2p1 c2
+        c5p1 c5
+        c6p1 c6 worker(u1)
+        [
+            {
+                u1,
+                hourCost: [
+                    {
+                        1999/12/31,
+                        2
+                    }
+                ],
+                hourCommission: [
+                    {
+                        1999/12/31,
+                        1
+                    }
+                ]
+            }
+        ]
         */
         FactoryService.NewProjectDto newProjectDto = new FactoryService.NewProjectDto("c1p1", c1.getId());
         Project c1p1 = factoryService.createProject(newProjectDto);
@@ -126,12 +163,22 @@ public class CommandLineRunnerBean implements CommandLineRunner {
         newProjectDto = new FactoryService.NewProjectDto("c2p1", c2.getId());
         Project c2p1 = factoryService.createProject(newProjectDto);
 
+        newProjectDto = new FactoryService.NewProjectDto("c5p1", c5.getId());
+        Project c5p1 = factoryService.createProject(newProjectDto);
+
+        newProjectDto = new FactoryService.NewProjectDto("c6p1", c6.getId());
+        Project c6p1 = factoryService.createProject(newProjectDto);
+
         factoryService.addWorkerToProject(
                 new FactoryService.NewWorkerDto(u1.getId(), c1p1.getId(), null ,null)
         );
 
         factoryService.addWorkerToProject(
                 new FactoryService.NewWorkerDto(u2.getId(), c1p1.getId(), null ,null)
+        );
+
+        factoryService.addWorkerToProject(
+                new FactoryService.NewWorkerDto(u1.getId(), c6p1.getId(), null ,null)
         );
 
         factoryService.addHourCost(
@@ -190,11 +237,36 @@ public class CommandLineRunnerBean implements CommandLineRunner {
                 )
         );
 
+        factoryService.addHourCommission(
+                u2.getId(),
+                c1p1.getId(),
+                new FactoryService.NewHourCommissionDto(1.0,
+                        LocalDate.of(1999, 12, 31)
+                )
+        );
+
+        factoryService.addHourCost(
+                u1.getId(),
+                c6p1.getId(),
+                new FactoryService.NewHourCostDto(2.0,
+                        LocalDate.of(1999, 12, 31)
+                )
+        );
+
+        factoryService.addHourCommission(
+                u1.getId(),
+                c6p1.getId(),
+                new FactoryService.NewHourCommissionDto(1.0,
+                        LocalDate.of(1999, 12, 31)
+                )
+        );
+
         /*
         payment
         1999/12/1 c1 100.0 testNote
         2000/1/5 c1 100.0 testNote
         2000/1/15 c1 100.0 testNote
+        2000/1/15 c4 100.0 testNote
         */
         FactoryService.NewPaymentDto newPaymentDto = new FactoryService.NewPaymentDto(100.0, LocalDate.of(1999, 12, 1), c1.getId(), "testNote");
         factoryService.createPayment(newPaymentDto);
@@ -205,11 +277,15 @@ public class CommandLineRunnerBean implements CommandLineRunner {
         newPaymentDto = new FactoryService.NewPaymentDto(100.0, LocalDate.of(2000, 1, 15), c1.getId(), "testNote");
         factoryService.createPayment(newPaymentDto);
 
+        newPaymentDto = new FactoryService.NewPaymentDto(100.0, LocalDate.of(2000, 1, 15), c4.getId(), "testNote");
+        factoryService.createPayment(newPaymentDto);
+
         /*
         workRecord
         c1p1 u1 2000/1/1 10:01 11:01 testWorkNote
         c1p1 u1 2000/1/5 10:01 11:01 testWorkNote
         c1p1 u1 2000/1/6 10:01 11:01 testWorkNote
+        c6p1 u1 2000/1/6 10:01
         */
         factoryService.createWorkRecord(
                 new FactoryService.NewWorkRecordDto(
@@ -238,6 +314,14 @@ public class CommandLineRunnerBean implements CommandLineRunner {
                         LocalDateTime.of(2000, 1, 6, 10, 1),
                         LocalDateTime.of(2000, 1, 6, 11, 1),
                         "testWorkNote"
+                )
+        );
+
+        factoryService.startWork(
+                new FactoryService.StartWorkDto(
+                        u1.getId(),
+                        c6p1.getId(),
+                        LocalDateTime.of(2000, 1, 6, 10, 1)
                 )
         );
 

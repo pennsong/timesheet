@@ -96,6 +96,13 @@ public class FactoryService {
 
     public void setCompanyWorkRecordFixedDate(Long id, LocalDate date) {
         Company company = gainEntityWithExistsChecking(Company.class, id);
+
+        // 修改截止日时截止日前(包括)本公司有未结束的workRecord, 则不允许修改
+        List<WorkRecord> workRecords = workRecordRepository.findCompanyUnfinishedWorkRecordsByDate(id, date.plusDays(1).atStartOfDay());
+        if (workRecords.size() > 0) {
+            throw new RuntimeException("请先结束以下工作记录:" + workRecords.toString());
+        }
+
         company.setWorkRecordFixedDate(date);
     }
 

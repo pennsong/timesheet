@@ -31,8 +31,10 @@ import org.springframework.util.StringUtils;
 import org.testng.annotations.BeforeTest;
 
 import java.io.*;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -84,7 +86,7 @@ public class TimesheetApplicationTests {
 
             String[] sqlCommands = stringBuilder.toString().split(";");
 
-            for (String item: sqlCommands) {
+            for (String item : sqlCommands) {
                 jdbcTemplate.execute(item);
             }
 
@@ -98,7 +100,6 @@ public class TimesheetApplicationTests {
     // ---成功
     @Test
     public void 公司_创建公司_成功() {
-        log.info("pptest 公司_创建公司_成功");
         HttpEntity<FactoryService.NewCompanyDto> request = new HttpEntity<>(
                 new FactoryService.NewCompanyDto(
                         "ct1",
@@ -108,9 +109,9 @@ public class TimesheetApplicationTests {
         );
 
         ResponseEntity<String> response = restTemplate.exchange("/company", HttpMethod.POST, request, String.class);
+        Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
 
         Company company = companyRepository.findOneByName("ct1");
-
         Assert.assertNotNull(company);
     }
     // ---
@@ -119,9 +120,6 @@ public class TimesheetApplicationTests {
     // ----创建重名公司
     @Test
     public void 公司_创建公司_失败_创建重名公司() throws Exception {
-        log.info("pptest 公司_创建公司_失败_创建重名公司");
-
-        Iterable<Company> companies = companyRepository.findAll();
 
         HttpEntity<FactoryService.NewCompanyDto> request = new HttpEntity<>(
                 new FactoryService.NewCompanyDto(
@@ -132,7 +130,6 @@ public class TimesheetApplicationTests {
         );
 
         ResponseEntity<String> response = restTemplate.exchange("/company", HttpMethod.POST, request, String.class);
-
         Assert.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
     }
     // ----
@@ -143,13 +140,59 @@ public class TimesheetApplicationTests {
 
     // --删除公司
     // ---成功
+    @Test
+    public void 公司_删除公司_成功() throws Exception {
+        Company company = companyRepository.findOneByName("c3");
+        Assert.assertNotNull(company);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/company/" + company.getId(),
+                HttpMethod.DELETE,
+                new HttpEntity<String>(""),
+                String.class);
+        Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        company = companyRepository.findOneByName("c3");
+        Assert.assertNull(company);
+    }
     // ---
 
     // ---失败
     // ----删除已经有相关业务数据的公司
     // -----已有payment
+    @Test
+    public void 公司_删除公司_失败_删除已经有相关业务数据的公司_已有payment() throws Exception {
+        Company company = companyRepository.findOneByName("c4");
+        Assert.assertNotNull(company);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/company/" + company.getId(),
+                HttpMethod.DELETE,
+                new HttpEntity<String>(""),
+                String.class);
+        Assert.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+
+        company = companyRepository.findOneByName("c4");
+        Assert.assertNotNull(company);
+    }
+
     // -----
     // -----已有project
+    @Test
+    public void 公司_删除公司_失败_删除已经有相关业务数据的公司_已有project() throws Exception {
+        Company company = companyRepository.findOneByName("c5");
+        Assert.assertNotNull(company);
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/company/" + company.getId(),
+                HttpMethod.DELETE,
+                new HttpEntity<String>(""),
+                String.class);
+        Assert.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+
+        company = companyRepository.findOneByName("c5");
+        Assert.assertNotNull(company);
+    }
     // -----
     // ----
     // ---
@@ -157,22 +200,96 @@ public class TimesheetApplicationTests {
 
     // --编辑公司
     // ---成功
-    // ----修改名字, 联系人, 电话
+    // ----修改名字$联系人$电话
+    @Test
+    public void 公司_编辑公司_成功_修改名字修改名字$联系人$电话() throws Exception {
+        Company company = companyRepository.findOneByName("c1");
+
+        HttpEntity<FactoryService.EditCompanyDto> request = new HttpEntity<>(
+                new FactoryService.EditCompanyDto(
+                        "c1c",
+                        "cpc",
+                        "pc")
+        );
+
+        ResponseEntity<String> response = restTemplate.exchange("/company/" + company.getId(), HttpMethod.PUT, request, String.class);
+        Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        Optional<Company> companyOptional = companyRepository.findById(company.getId());
+        Company result = companyOptional.get();
+        Assert.assertEquals("c1c", result.getName());
+        Assert.assertEquals("cpc", result.getContactPerson());
+        Assert.assertEquals("pc", result.getPhone());
+    }
     // ----
     // ---
 
     // ---失败
     // ----修改名字为和其他存在的公司重名
+    @Test
+    public void 公司_编辑公司_失败_修改名字为和其他存在的公司重名() throws Exception {
+        Company company = companyRepository.findOneByName("c1");
+
+        HttpEntity<FactoryService.EditCompanyDto> request = new HttpEntity<>(
+                new FactoryService.EditCompanyDto(
+                        "c2",
+                        "cpc",
+                        "pc")
+        );
+
+        ResponseEntity<String> response = restTemplate.exchange("/company/" + company.getId(), HttpMethod.PUT, request, String.class);
+        Assert.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+
+        Optional<Company> companyOptional = companyRepository.findById(company.getId());
+        Company result = companyOptional.get();
+        Assert.assertEquals("c1", result.getName());
+    }
     // ---
     // --
 
     // --设置最后一次公司结算日
     // ---成功
     // ----修改截止日时非本公司有未结束的workRecord
+    @Test
+    public void 公司_设置最后一次公司结算日_成功_修改截止日时非本公司有未结束的workRecord() throws Exception {
+        Company company = companyRepository.findOneByName("c1");
+
+        HttpEntity<String> request = new HttpEntity<>("");
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/company/" + company.getId() + "/setCompanyWorkRecordFixedDate/2000-02-01",
+                HttpMethod.POST,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        Optional<Company> companyOptional = companyRepository.findById(company.getId());
+        Company result = companyOptional.get();
+        Assert.assertEquals(LocalDate.of(2000, 2, 1), result.getWorkRecordFixedDate());
+    }
     // ----
     // ---
     // ---失败
-    // ----修改截止日时本公司有未结束的workRecord
+    // ----修改截止日时截止日前本公司有未结束的workRecord
+    @Test
+    public void 公司_设置最后一次公司结算日_失败_修改截止日时截止日前本公司有未结束的workRecord() throws Exception {
+        Company company = companyRepository.findOneByName("c6");
+
+        HttpEntity<String> request = new HttpEntity<>("");
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/company/" + company.getId() + "/setCompanyWorkRecordFixedDate/2000-02-01",
+                HttpMethod.POST,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+
+        Optional<Company> companyOptional = companyRepository.findById(company.getId());
+        Company result = companyOptional.get();
+        Assert.assertEquals(LocalDate.of(1900, 1, 1), result.getWorkRecordFixedDate());
+    }
     // ----
     // ---
     // --
@@ -291,6 +408,8 @@ public class TimesheetApplicationTests {
     // ----
     // ----当前时间小于公司结算日(这个结算日在未来)
     // ----
+    // ----指定start和同个用户在同个公司的workRecord重合
+    // ----
     // ---
     // --
 
@@ -303,6 +422,8 @@ public class TimesheetApplicationTests {
     // ---
     // ---失败
     // ----当前没有开始的workRecord
+    // ----
+    // ----指定end和同个用户在同个公司的workRecord重合
     // ----
     // ---
     // --

@@ -60,7 +60,7 @@ public class MainController {
     }
 
     // 编辑公司
-    @RequestMapping(value = "/company/{id}", method = RequestMethod.PATCH)
+    @RequestMapping(value = "/company/{id}", method = RequestMethod.PUT)
     public String editCompany(@PathVariable Long id, @Valid @RequestBody FactoryService.EditCompanyDto dto) {
         factoryService.editCompany(id, dto);
 
@@ -106,7 +106,7 @@ public class MainController {
     }
 
     // 编辑项目
-    @RequestMapping(value = "/project/{id}", method = RequestMethod.PATCH)
+    @RequestMapping(value = "/project/{id}", method = RequestMethod.PUT)
     public String editProject(@PathVariable Long id, @Valid @RequestBody FactoryService.EditProjectDto dto) {
         factoryService.editProject(id, dto);
 

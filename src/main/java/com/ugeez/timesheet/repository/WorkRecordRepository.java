@@ -33,5 +33,14 @@ public interface WorkRecordRepository extends CrudRepository<WorkRecord, Long> {
             ")")
     Long findByOverlapWorkRecords(@Param("companyId") Long companyId, @Param("userId") Long userId, @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
+    @Query("select w from " +
+            "WorkRecord w " +
+            "join w.project p " +
+            "join p.company c " +
+            "where c.id= :companyId " +
+            "and w.end = null " +
+            "and w.start <= :dateTime")
+    List<WorkRecord>  findCompanyUnfinishedWorkRecordsByDate(@Param("companyId") Long companyId, @Param("dateTime") LocalDateTime dateTime);
+
     Optional<WorkRecord> findOneByUserIdAndEndIsNull(Long id);
 }
