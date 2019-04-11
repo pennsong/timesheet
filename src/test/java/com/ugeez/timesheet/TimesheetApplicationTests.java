@@ -1,28 +1,140 @@
 package com.ugeez.timesheet;
 
-import org.junit.Test;
+import com.ugeez.timesheet.model.Company;
+import com.ugeez.timesheet.repository.CompanyRepository;
+import com.ugeez.timesheet.repository.WorkRecordRepository;
+import com.ugeez.timesheet.service.FactoryService;
+import lombok.extern.slf4j.Slf4j;
+import org.junit.*;
 import org.junit.runner.RunWith;
+import org.junit.runners.MethodSorters;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.web.server.LocalServerPort;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+import org.springframework.http.*;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.annotation.Commit;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.jdbc.Sql;
+import org.springframework.test.context.jdbc.SqlGroup;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.testng.annotations.BeforeTest;
 
+import java.io.*;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+
+import static org.assertj.core.internal.bytebuddy.matcher.ElementMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.IsNull.notNullValue;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@Slf4j
 @RunWith(SpringRunner.class)
-@SpringBootTest
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class TimesheetApplicationTests {
+    private static boolean init = false;
 
-    @Test
-    public void contextLoads() {
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private TestRestTemplate restTemplate;
+
+    @Autowired
+    CompanyRepository companyRepository;
+
+    @Autowired
+    WorkRecordRepository workRecordRepository;
+
+    @Before
+    public void before() throws IOException {
+        if (!init) {
+            init = true;
+            jdbcTemplate.execute("script to 'src/test/resources/dump.sql'");
+            log.info("pptest create dump.sql");
+        } else {
+            jdbcTemplate.execute("DROP SEQUENCE HIBERNATE_SEQUENCE;");
+
+            List<Map<String, Object>> tables = jdbcTemplate.queryForList("SHOW TABLES");
+            tables.stream().forEach(item -> jdbcTemplate.execute("DROP TABLE " + item.get("TABLE_NAME")));
+
+            FileReader fr = new FileReader(new File("src/test/resources/dump.sql"));
+            BufferedReader br = new BufferedReader(fr);
+            String lineStr;
+            StringBuilder stringBuilder = new StringBuilder();
+            while ((lineStr = br.readLine()) != null) {
+                stringBuilder.append(lineStr);
+            }
+            br.close();
+
+            String[] sqlCommands = stringBuilder.toString().split(";");
+
+            for (String item: sqlCommands) {
+                jdbcTemplate.execute(item);
+            }
+
+            log.info("pptest drop and restored");
+        }
     }
 
     // -公司
 
     // --创建公司
-
     // ---成功
+    @Test
+    public void 公司_创建公司_成功() {
+        log.info("pptest 公司_创建公司_成功");
+        HttpEntity<FactoryService.NewCompanyDto> request = new HttpEntity<>(
+                new FactoryService.NewCompanyDto(
+                        "ct1",
+                        null,
+                        null
+                )
+        );
+
+        ResponseEntity<String> response = restTemplate.exchange("/company", HttpMethod.POST, request, String.class);
+
+        Company company = companyRepository.findOneByName("ct1");
+
+        Assert.assertNotNull(company);
+    }
     // ---
 
     // ---失败
     // ----创建重名公司
+    @Test
+    public void 公司_创建公司_失败_创建重名公司() throws Exception {
+        log.info("pptest 公司_创建公司_失败_创建重名公司");
+
+        Iterable<Company> companies = companyRepository.findAll();
+
+        HttpEntity<FactoryService.NewCompanyDto> request = new HttpEntity<>(
+                new FactoryService.NewCompanyDto(
+                        "c1",
+                        null,
+                        null
+                )
+        );
+
+        ResponseEntity<String> response = restTemplate.exchange("/company", HttpMethod.POST, request, String.class);
+
+        Assert.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+    }
     // ----
 
     // ---
@@ -35,6 +147,10 @@ public class TimesheetApplicationTests {
 
     // ---失败
     // ----删除已经有相关业务数据的公司
+    // -----已有payment
+    // -----
+    // -----已有project
+    // -----
     // ----
     // ---
     // --
@@ -193,6 +309,10 @@ public class TimesheetApplicationTests {
 
     // --添加workRecord
     // ---成功
+    // ----添加单天workRecord
+    // ----
+    // ----添加跨天的workRecord
+    // ----
     // ---
     // ---失败
     // ----不是项目worker的工作记录
