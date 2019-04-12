@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface ProjectRepository extends CrudRepository<Project, Long> {
     List<Project> findByCompanyId(Long id);
+
+    Project findOneByName(String name);
 }

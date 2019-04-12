@@ -14,9 +14,10 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.web.bind.annotation.*;
 
-import javax.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import javax.validation.Valid;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -78,13 +79,13 @@ public class MainController {
     // 查看公司预付款余额
     @RequestMapping(value = "/company/{id}/checkBalance", method = RequestMethod.GET)
     public String gainBalance(@PathVariable Long id) {
-        return "ok" + factoryService.gainCompanyBalance(id);
+        return "" + factoryService.gainCompanyBalance(id);
     }
 
     // 查看公司到指定日期预付款余额
     @RequestMapping(value = "/company/{id}/checkBalance/{end}", method = RequestMethod.GET)
-    public String gainBalanceByDate(@PathVariable Long id, @PathVariable LocalDate end) {
-        return "ok" + factoryService.gainCompanyBalanceByDate(id, end);
+    public String gainBalanceByDate(@PathVariable Long id, @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate end) {
+        return "" + factoryService.gainCompanyBalanceByDate(id, end);
     }
     // end 公司
 
@@ -208,8 +209,8 @@ public class MainController {
             String[] fields = item.split("[ |\\t]+");
             String username = fields[0].trim();
 
-            Optional<User> user = userRepository.findOneByUsernameEqualsIgnoreCase(username);
-            if (!(user.isPresent())) {
+            User user = userRepository.findOneByUsernameEqualsIgnoreCase(username);
+            if (user == null) {
                 throw new RuntimeException(item + "中的" + username + "不存在!");
             }
 
@@ -227,7 +228,7 @@ public class MainController {
 
             String note = String.join(" ", Arrays.copyOfRange(fields, 4, fields.length));
 
-            FactoryService.NewWorkRecordDto newWorkRecordDto = new FactoryService.NewWorkRecordDto(user.get().getId(), projectId, start, end, note);
+            FactoryService.NewWorkRecordDto newWorkRecordDto = new FactoryService.NewWorkRecordDto(user.getId(), projectId, start, end, note);
             factoryService.createWorkRecord(newWorkRecordDto);
         }
 

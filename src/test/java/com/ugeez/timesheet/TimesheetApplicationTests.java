@@ -1,7 +1,9 @@
 package com.ugeez.timesheet;
 
-import com.ugeez.timesheet.model.Company;
+import com.ugeez.timesheet.model.*;
 import com.ugeez.timesheet.repository.CompanyRepository;
+import com.ugeez.timesheet.repository.ProjectRepository;
+import com.ugeez.timesheet.repository.UserRepository;
 import com.ugeez.timesheet.repository.WorkRecordRepository;
 import com.ugeez.timesheet.service.FactoryService;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +16,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.web.server.LocalServerPort;
+import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 import org.springframework.http.*;
@@ -26,10 +29,13 @@ import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.testng.annotations.BeforeTest;
 
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import java.io.*;
 import java.time.LocalDate;
 import java.util.List;
@@ -48,8 +54,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Slf4j
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Transactional
 public class TimesheetApplicationTests {
     private static boolean init = false;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -58,7 +68,13 @@ public class TimesheetApplicationTests {
     private TestRestTemplate restTemplate;
 
     @Autowired
+    UserRepository userRepository;
+
+    @Autowired
     CompanyRepository companyRepository;
+
+    @Autowired
+    ProjectRepository projectRepository;
 
     @Autowired
     WorkRecordRepository workRecordRepository;
@@ -111,6 +127,9 @@ public class TimesheetApplicationTests {
         ResponseEntity<String> response = restTemplate.exchange("/company", HttpMethod.POST, request, String.class);
         Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
 
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
+
         Company company = companyRepository.findOneByName("ct1");
         Assert.assertNotNull(company);
     }
@@ -119,7 +138,7 @@ public class TimesheetApplicationTests {
     // ---失败
     // ----创建重名公司
     @Test
-    public void 公司_创建公司_失败_创建重名公司() throws Exception {
+    public void 公司_创建公司_失败_创建重名公司() {
 
         HttpEntity<FactoryService.NewCompanyDto> request = new HttpEntity<>(
                 new FactoryService.NewCompanyDto(
@@ -141,7 +160,7 @@ public class TimesheetApplicationTests {
     // --删除公司
     // ---成功
     @Test
-    public void 公司_删除公司_成功() throws Exception {
+    public void 公司_删除公司_成功() {
         Company company = companyRepository.findOneByName("c3");
         Assert.assertNotNull(company);
 
@@ -152,6 +171,9 @@ public class TimesheetApplicationTests {
                 String.class);
         Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
 
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
+
         company = companyRepository.findOneByName("c3");
         Assert.assertNull(company);
     }
@@ -161,7 +183,7 @@ public class TimesheetApplicationTests {
     // ----删除已经有相关业务数据的公司
     // -----已有payment
     @Test
-    public void 公司_删除公司_失败_删除已经有相关业务数据的公司_已有payment() throws Exception {
+    public void 公司_删除公司_失败_删除已经有相关业务数据的公司_已有payment() {
         Company company = companyRepository.findOneByName("c4");
         Assert.assertNotNull(company);
 
@@ -172,6 +194,9 @@ public class TimesheetApplicationTests {
                 String.class);
         Assert.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
 
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
+
         company = companyRepository.findOneByName("c4");
         Assert.assertNotNull(company);
     }
@@ -179,7 +204,7 @@ public class TimesheetApplicationTests {
     // -----
     // -----已有project
     @Test
-    public void 公司_删除公司_失败_删除已经有相关业务数据的公司_已有project() throws Exception {
+    public void 公司_删除公司_失败_删除已经有相关业务数据的公司_已有project() {
         Company company = companyRepository.findOneByName("c5");
         Assert.assertNotNull(company);
 
@@ -189,6 +214,9 @@ public class TimesheetApplicationTests {
                 new HttpEntity<String>(""),
                 String.class);
         Assert.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
 
         company = companyRepository.findOneByName("c5");
         Assert.assertNotNull(company);
@@ -202,7 +230,7 @@ public class TimesheetApplicationTests {
     // ---成功
     // ----修改名字$联系人$电话
     @Test
-    public void 公司_编辑公司_成功_修改名字修改名字$联系人$电话() throws Exception {
+    public void 公司_编辑公司_成功_修改名字修改名字$联系人$电话() {
         Company company = companyRepository.findOneByName("c1");
 
         HttpEntity<FactoryService.EditCompanyDto> request = new HttpEntity<>(
@@ -215,8 +243,12 @@ public class TimesheetApplicationTests {
         ResponseEntity<String> response = restTemplate.exchange("/company/" + company.getId(), HttpMethod.PUT, request, String.class);
         Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
 
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
+
         Optional<Company> companyOptional = companyRepository.findById(company.getId());
         Company result = companyOptional.get();
+
         Assert.assertEquals("c1c", result.getName());
         Assert.assertEquals("cpc", result.getContactPerson());
         Assert.assertEquals("pc", result.getPhone());
@@ -227,7 +259,7 @@ public class TimesheetApplicationTests {
     // ---失败
     // ----修改名字为和其他存在的公司重名
     @Test
-    public void 公司_编辑公司_失败_修改名字为和其他存在的公司重名() throws Exception {
+    public void 公司_编辑公司_失败_修改名字为和其他存在的公司重名() {
         Company company = companyRepository.findOneByName("c1");
 
         HttpEntity<FactoryService.EditCompanyDto> request = new HttpEntity<>(
@@ -240,6 +272,9 @@ public class TimesheetApplicationTests {
         ResponseEntity<String> response = restTemplate.exchange("/company/" + company.getId(), HttpMethod.PUT, request, String.class);
         Assert.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
 
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
+
         Optional<Company> companyOptional = companyRepository.findById(company.getId());
         Company result = companyOptional.get();
         Assert.assertEquals("c1", result.getName());
@@ -251,7 +286,7 @@ public class TimesheetApplicationTests {
     // ---成功
     // ----修改截止日时非本公司有未结束的workRecord
     @Test
-    public void 公司_设置最后一次公司结算日_成功_修改截止日时非本公司有未结束的workRecord() throws Exception {
+    public void 公司_设置最后一次公司结算日_成功_修改截止日时非本公司有未结束的workRecord() {
         Company company = companyRepository.findOneByName("c1");
 
         HttpEntity<String> request = new HttpEntity<>("");
@@ -264,16 +299,20 @@ public class TimesheetApplicationTests {
         );
         Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
 
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
+
         Optional<Company> companyOptional = companyRepository.findById(company.getId());
         Company result = companyOptional.get();
         Assert.assertEquals(LocalDate.of(2000, 2, 1), result.getWorkRecordFixedDate());
     }
+
     // ----
     // ---
     // ---失败
     // ----修改截止日时截止日前本公司有未结束的workRecord
     @Test
-    public void 公司_设置最后一次公司结算日_失败_修改截止日时截止日前本公司有未结束的workRecord() throws Exception {
+    public void 公司_设置最后一次公司结算日_失败_修改截止日时截止日前本公司有未结束的workRecord() {
         Company company = companyRepository.findOneByName("c6");
 
         HttpEntity<String> request = new HttpEntity<>("");
@@ -286,6 +325,9 @@ public class TimesheetApplicationTests {
         );
         Assert.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
 
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
+
         Optional<Company> companyOptional = companyRepository.findById(company.getId());
         Company result = companyOptional.get();
         Assert.assertEquals(LocalDate.of(1900, 1, 1), result.getWorkRecordFixedDate());
@@ -295,12 +337,86 @@ public class TimesheetApplicationTests {
     // --
 
     // --查看公司预付款余额
-    // ---hourCost中途有调整过, 还包含没有开始的hourCost的例子
+    // ---成功
+    // ----hourCost中途有调整过还包含没有开始的hourCost的例子
+    @Test
+    public void 公司_查看公司预付款余额_成功_hourCost中途有调整过还包含没有开始的hourCost的例子() {
+        Company company = companyRepository.findOneByName("c1");
+
+        HttpEntity<String> request = new HttpEntity<>("");
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/company/" + company.getId() + "/checkBalance",
+                HttpMethod.GET,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
+        Assert.assertEquals("290.0", response.getBody());
+    }
+
+    // ----
     // ---
+    // ---失败
+    // ----今天以前本公司有相关未结束的workRecord
+    @Test
+    public void 公司_查看公司预付款余额_失败_今天以前本公司有相关未结束的workRecord() {
+        Company company = companyRepository.findOneByName("c6");
+
+        HttpEntity<String> request = new HttpEntity<>("");
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/company/" + company.getId() + "/checkBalance",
+                HttpMethod.GET,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+    }
+    // ----
+    // ---
+
+
     // --
 
     // --查看公司到指定日期预付款余额
-    // ---hourCost中途有调整过, 还包含没有开始的hourCost的例子
+    // ---成功
+    // ----hourCost中途有调整过还包含没有开始的hourCost的例子
+    @Test
+    public void 公司_查看公司到指定日期预付款余额_成功_hourCost中途有调整过还包含没有开始的hourCost的例子() {
+        Company company = companyRepository.findOneByName("c1");
+
+        HttpEntity<String> request = new HttpEntity<>("");
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/company/" + company.getId() + "/checkBalance/2000-01-05",
+                HttpMethod.GET,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
+        Assert.assertEquals("194.0", response.getBody());
+    }
+
+    // ----
+    // ---
+    // ---失败
+    // ----指定日期以前本公司有相关未结束的workRecord
+    @Test
+    public void 公司_查看公司到指定日期预付款余额_失败_指定日期以前本公司有相关未结束的workRecord() {
+        Company company = companyRepository.findOneByName("c6");
+
+        HttpEntity<String> request = new HttpEntity<>("");
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/company/" + company.getId() + "/checkBalance/2099-01-01",
+                HttpMethod.GET,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+    }
+    // ----
     // ---
     // --
 
@@ -310,31 +426,144 @@ public class TimesheetApplicationTests {
 
     // --创建项目
     // ---成功
+    @Test
+    public void 项目_创建项目_成功() {
+        Company company = companyRepository.findOneByName("c1");
+
+        HttpEntity<FactoryService.NewProjectDto> request = new HttpEntity<>(new FactoryService.NewProjectDto(
+                "c1pt1",
+                company.getId()
+        ));
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/project/",
+                HttpMethod.POST,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
+
+        Project project = projectRepository.findOneByName("c1pt1");
+        Assert.assertNotNull(project);
+    }
+
     // ---
     // ---失败
     // ----创建项目名称为已存在项目同名的项目
+    @Test
+    public void 项目_创建项目_失败_创建项目名称为已存在项目同名的项目() {
+        Company company = companyRepository.findOneByName("c1");
+
+        HttpEntity<FactoryService.NewProjectDto> request = new HttpEntity<>(new FactoryService.NewProjectDto(
+                "c1p1",
+                company.getId()
+        ));
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/project/",
+                HttpMethod.POST,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+    }
     // ----
     // ---
     // --
 
     // --删除项目
     // ---成功
-    // ----删除空项目
-    // ----
     // ----删除有worker的项目
+    @Test
+    public void 项目_删除项目_成功_删除有worker的项目() {
+        Project project = projectRepository.findOneByName("c5p1");
+
+        HttpEntity<String> request = new HttpEntity<>("");
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/project/" + project.getId(),
+                HttpMethod.DELETE,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
+
+        project = projectRepository.findOneByName("c5p1");
+        Assert.assertNull(project);
+    }
+
     // ----
     // ---
     // ---失败
     // ----删除已有workRecord的项目
+    @Test
+    public void 项目_删除项目_失败_删除已有workRecord的项目() {
+        Project project = projectRepository.findOneByName("c1p1");
+
+        HttpEntity<String> request = new HttpEntity<>("");
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/project/" + project.getId(),
+                HttpMethod.DELETE,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+    }
     // ----
     // ---
     // --
 
     // --编辑项目
     // ---成功
+    @Test
+    public void 项目_编辑项目_成功() {
+        Project project = projectRepository.findOneByName("c1p1");
+
+        HttpEntity<FactoryService.EditProjectDto> request = new HttpEntity<>(new FactoryService.EditProjectDto(
+                "c1p1c"
+        ));
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/project/" + project.getId(),
+                HttpMethod.PUT,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
+
+        project = projectRepository.findOneByName("c1p1c");
+        Assert.assertNotNull(project);
+    }
+
     // ---
     // ---失败
     // ----项目名称为已有项目同名
+    @Test
+    public void 项目_编辑项目_失败_项目名称为已有项目同名() {
+        Project project = projectRepository.findOneByName("c1p1");
+
+        HttpEntity<FactoryService.EditProjectDto> request = new HttpEntity<>(new FactoryService.EditProjectDto(
+                "c1p2"
+        ));
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/project/" + project.getId(),
+                HttpMethod.PUT,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+    }
     // ----
     // ---
     // --
@@ -342,6 +571,102 @@ public class TimesheetApplicationTests {
 
     // --添加项目成员
     // ---成功
+    // ----不指定hourCost和hourCommission
+    @Test
+    public void 项目_添加项目成员_成功_不指定hourCost和hourCommission() {
+        User user = userRepository.findOneByUsernameEqualsIgnoreCase("u3");
+        Project project = projectRepository.findOneByName("c1p1");
+
+        HttpEntity<FactoryService.NewWorkerDto> request = new HttpEntity<>(new FactoryService.NewWorkerDto(
+                user.getId(),
+                project.getId(),
+                null,
+                null
+        ));
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/project/addWorkerToProject",
+                HttpMethod.POST,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
+
+        project = projectRepository.findOneByName("c1p1");
+        Assert.assertEquals(true, project.gainWorkerByUserId(user.getId()).isPresent());
+
+        HourCost hourCost = project.gainWorkerByUserId(user.getId()).get().gainHourCosts().get(0);
+        HourCommission hourCommission = project.gainWorkerByUserId(user.getId()).get().gainHourCommissions().get(0);
+        Assert.assertEquals(user.getHourCostAmount(), hourCost.getAmount());
+        Assert.assertEquals(LocalDate.of(1900, 1, 1), hourCost.getStartDate());
+        Assert.assertEquals(user.getHourCommissionAmount(), hourCommission.getAmount());
+        Assert.assertEquals(LocalDate.of(1900, 1, 1), hourCommission.getStartDate());
+    }
+
+    // ----
+    // ----指定hourCost和hourCommission
+    @Test
+    public void 项目_添加项目成员_成功_指定hourCost和hourCommission() {
+        User user = userRepository.findOneByUsernameEqualsIgnoreCase("u3");
+        Project project = projectRepository.findOneByName("c1p1");
+
+        HttpEntity<FactoryService.NewWorkerDto> request = new HttpEntity<>(new FactoryService.NewWorkerDto(
+                user.getId(),
+                project.getId(),
+                1000.0,
+                500.0
+        ));
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/project/addWorkerToProject",
+                HttpMethod.POST,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
+
+        project = projectRepository.findOneByName("c1p1");
+        Assert.assertEquals(true, project.gainWorkerByUserId(user.getId()).isPresent());
+
+        HourCost hourCost = project.gainWorkerByUserId(user.getId()).get().gainHourCosts().get(0);
+        HourCommission hourCommission = project.gainWorkerByUserId(user.getId()).get().gainHourCommissions().get(0);
+        Assert.assertEquals(new Double(1000.0), hourCost.getAmount());
+        Assert.assertEquals(LocalDate.of(1900, 1, 1), hourCost.getStartDate());
+        Assert.assertEquals(new Double(500.0), hourCommission.getAmount());
+        Assert.assertEquals(LocalDate.of(1900, 1, 1), hourCommission.getStartDate());
+    }
+    // ----
+
+    // ---
+    // ---失败
+    // ----指定已存在的成员
+    @Test
+    public void 项目_添加项目成员_失败_指定已存在的成员() {
+        User user = userRepository.findOneByUsernameEqualsIgnoreCase("u1");
+        Project project = projectRepository.findOneByName("c1p1");
+
+        HttpEntity<FactoryService.NewWorkerDto> request = new HttpEntity<>(new FactoryService.NewWorkerDto(
+                user.getId(),
+                project.getId(),
+                1000.0,
+                500.0
+        ));
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/project/addWorkerToProject",
+                HttpMethod.POST,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+    }
+    // ----
     // ---
     // --
 

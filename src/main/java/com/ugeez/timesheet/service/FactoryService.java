@@ -94,14 +94,18 @@ public class FactoryService {
         company.setPhone(dto.phone);
     }
 
+    public void checkUnfinishedWorkRecordsByDate(Long companyId, LocalDate date) {
+        List<WorkRecord> workRecords = workRecordRepository.findCompanyUnfinishedWorkRecordsByDate(companyId, date.plusDays(1).atStartOfDay());
+        if (workRecords.size() > 0) {
+            throw new RuntimeException("请先结束以下工作记录:" + workRecords.toString());
+        }
+    }
+
     public void setCompanyWorkRecordFixedDate(Long id, LocalDate date) {
         Company company = gainEntityWithExistsChecking(Company.class, id);
 
         // 修改截止日时截止日前(包括)本公司有未结束的workRecord, 则不允许修改
-        List<WorkRecord> workRecords = workRecordRepository.findCompanyUnfinishedWorkRecordsByDate(id, date.plusDays(1).atStartOfDay());
-        if (workRecords.size() > 0) {
-            throw new RuntimeException("请先结束以下工作记录:" + workRecords.toString());
-        }
+        checkUnfinishedWorkRecordsByDate(id, date);
 
         company.setWorkRecordFixedDate(date);
     }
@@ -119,6 +123,9 @@ public class FactoryService {
     public Double gainCompanyBalance(Long id) {
         Company company = gainEntityWithExistsChecking(Company.class, id);
 
+        // 修改截止日时截止日前(包括)本公司有未结束的workRecord, 则不允许修改
+        checkUnfinishedWorkRecordsByDate(id, LocalDate.now());
+
         // 遍历此公司的所有项目, 获得总花费
         Double totalCost = calCompanyWorkCost(id);
 
@@ -132,6 +139,9 @@ public class FactoryService {
 
     public Double gainCompanyBalanceByDate(Long id, LocalDate end) {
         Company company = gainEntityWithExistsChecking(Company.class, id);
+
+        // 修改截止日时截止日前(包括)本公司有未结束的workRecord, 则不允许修改
+        checkUnfinishedWorkRecordsByDate(id, end);
 
         // 遍历此公司的所有项目, 获得总花费
         Double totalCost = calCompanyWorkCostByDate(id, end);
@@ -204,6 +214,13 @@ public class FactoryService {
     public static class EditProjectDto {
         @NotEmpty
         private String name;
+
+        // todo 找到原因: 去掉下面一个field, 这个class只留1个field, 会报错误: JSON parse error
+        private String foo;
+
+        public EditProjectDto(String name) {
+            this.name = name;
+        }
     }
 
     // Worker
@@ -223,7 +240,7 @@ public class FactoryService {
         hourCosts.add(new HourCost(LocalDate.of(1900, 1, 1), dto.hourCostAmount));
 
         List<HourCommission> hourCommissions = new ArrayList<>();
-        hourCommissions.add(new HourCommission(LocalDate.of(1900, Month.JANUARY, 1), user.getHourCommissionAmount()));
+        hourCommissions.add(new HourCommission(LocalDate.of(1900, Month.JANUARY, 1), dto.getHourCommissionAmount()));
 
         Worker worker = new Worker(null, user, project, hourCosts, hourCommissions);
 
@@ -375,7 +392,7 @@ public class FactoryService {
 
         workRecords = endWorkRecord.splitWorkRecordToDay(dto.end);
 
-        for (WorkRecord item: workRecords) {
+        for (WorkRecord item : workRecords) {
             workRecordRepository.save(item);
         }
     }
@@ -404,7 +421,7 @@ public class FactoryService {
 
         workRecordRepository.save(workRecord);
 
-        for (WorkRecord item: workRecords) {
+        for (WorkRecord item : workRecords) {
             workRecordRepository.save(item);
         }
     }
@@ -538,7 +555,7 @@ public class FactoryService {
     public JSONObject genReport(Long companyId, LocalDate start, LocalDate end) throws JSONException {
         // 取得start到end之间的工作记录
         List<WorkRecord> workRecords = workRecordRepository.findByProjectCompanyIdAndDateIsGreaterThanEqualAndDateIsLessThanEqual(companyId, start, end);
-        List<String> wordRecordsReport = workRecords.stream().map(item -> "" + item + ", " +  item.calCost()).collect(Collectors.toList());
+        List<String> wordRecordsReport = workRecords.stream().map(item -> "" + item + ", " + item.calCost()).collect(Collectors.toList());
 
         // 取得start的balance
         Double startBalance = gainCompanyBalanceByDate(companyId, start.minus(1, DAYS));

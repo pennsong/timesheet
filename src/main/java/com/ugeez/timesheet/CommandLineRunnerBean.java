@@ -43,7 +43,7 @@ public class CommandLineRunnerBean implements CommandLineRunner {
     private UserRepository userRepository;
 
     @Override
-    public void run(String... args) throws Exception {
+    public void run(String... args) {
         /*user
         u1 2 0
         u2 2 1
@@ -100,6 +100,10 @@ public class CommandLineRunnerBean implements CommandLineRunner {
                         2000/1/20,
                         6
                     },
+                    {
+                        2099/1/1,
+                        8
+                    },
                 ],
                 hourCommission: [
                     {
@@ -113,6 +117,10 @@ public class CommandLineRunnerBean implements CommandLineRunner {
                     {
                         2000/1/20,
                         3
+                    },
+                    {
+                        2099/1/1,
+                        4
                     },
                 ],
             },
@@ -134,7 +142,7 @@ public class CommandLineRunnerBean implements CommandLineRunner {
         ]
         c1p2 c1
         c2p1 c2
-        c5p1 c5
+        c5p1 c5 worker(u1)
         c6p1 c6 worker(u1)
         [
             {
@@ -178,6 +186,10 @@ public class CommandLineRunnerBean implements CommandLineRunner {
         );
 
         factoryService.addWorkerToProject(
+                new FactoryService.NewWorkerDto(u1.getId(), c5p1.getId(), null ,null)
+        );
+
+        factoryService.addWorkerToProject(
                 new FactoryService.NewWorkerDto(u1.getId(), c6p1.getId(), null ,null)
         );
 
@@ -205,6 +217,14 @@ public class CommandLineRunnerBean implements CommandLineRunner {
                 )
         );
 
+        factoryService.addHourCost(
+                u1.getId(),
+                c1p1.getId(),
+                new FactoryService.NewHourCostDto(8.0,
+                        LocalDate.of(2099, 1, 1)
+                )
+        );
+
         factoryService.addHourCommission(
                 u1.getId(),
                 c1p1.getId(),
@@ -226,6 +246,14 @@ public class CommandLineRunnerBean implements CommandLineRunner {
                 c1p1.getId(),
                 new FactoryService.NewHourCommissionDto(3.0,
                         LocalDate.of(2000, 1, 20)
+                )
+        );
+
+        factoryService.addHourCommission(
+                u1.getId(),
+                c1p1.getId(),
+                new FactoryService.NewHourCommissionDto(4.0,
+                        LocalDate.of(2099, 1, 1)
                 )
         );
 

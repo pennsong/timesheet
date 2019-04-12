@@ -20,6 +20,7 @@ public class Project extends PPEntityTypeValidatableAbstract {
     private Long id;
 
     @NotEmpty
+    @Column(unique = true)
     @Setter
     @Getter
     private String name;
@@ -28,7 +29,7 @@ public class Project extends PPEntityTypeValidatableAbstract {
     @Getter
     private Company company;
 
-    @OneToMany(mappedBy = "project", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @OneToMany(mappedBy = "project", cascade = {CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE})
     private List<Worker> workers;
 
     public void addWorker(Worker worker) {

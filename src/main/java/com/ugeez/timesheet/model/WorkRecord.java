@@ -57,7 +57,7 @@ public class WorkRecord extends PPEntityTypeValidatableAbstract {
             throw new RuntimeException(this + "这条记录的用户还没有计费规则!");
         }
 
-        HourCost hourCost = worker.get().gainHourCosts().stream().filter(item -> item.getStartDate().isBefore(date)).findFirst().get();
+        HourCost hourCost = worker.get().gainHourCosts().stream().filter(item -> (item.getStartDate().isBefore(date) || item.getStartDate().isEqual(date))).findFirst().get();
         long seconds = Duration.between(start, end).getSeconds();
         double secondCost = hourCost.getAmount() / 3600;
 
