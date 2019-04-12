@@ -42,5 +42,13 @@ public interface WorkRecordRepository extends CrudRepository<WorkRecord, Long> {
             "and w.start <= :dateTime")
     List<WorkRecord>  findCompanyUnfinishedWorkRecordsByDate(@Param("companyId") Long companyId, @Param("dateTime") LocalDateTime dateTime);
 
+    @Query("select count(w) from " +
+            "WorkRecord w " +
+            "join w.project p " +
+            "join w.user u " +
+            "where p.id= :projectId " +
+            "and u.id = :userId")
+    Long workRecordExist(@Param("projectId") Long projectId, @Param("userId") Long userId);
+
     Optional<WorkRecord> findOneByUserIdAndEndIsNull(Long id);
 }

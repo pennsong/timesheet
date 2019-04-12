@@ -672,9 +672,51 @@ public class TimesheetApplicationTests {
 
     // --删除项目成员
     // ---成功
+    @Test
+    public void 项目_删除项目成员_成功() {
+        User user = userRepository.findOneByUsernameEqualsIgnoreCase("u2");
+        Project project = projectRepository.findOneByName("c1p1");
+
+        HttpEntity<String> request = new HttpEntity<>("");
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/project/" + project.getId() + "/removeWorkerFromProject/" + user.getId(),
+                HttpMethod.POST,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
+        project = projectRepository.findOneByName("c1p1");
+        Optional<Worker> workerOptional = project.gainWorkerByUserId(user.getId());
+        Assert.assertEquals(true, workerOptional.isPresent());
+    }
     // ---
     // ---失败
     // ----删除这个项目已有workRecord的成员
+    @Test
+    public void 项目_删除项目成员_失败_删除这个项目已有workRecord的成员() {
+        User user = userRepository.findOneByUsernameEqualsIgnoreCase("u1");
+        Project project = projectRepository.findOneByName("c1p1");
+
+        HttpEntity<String> request = new HttpEntity<>("");
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/project/" + project.getId() + "/removeWorkerFromProject/" + user.getId(),
+                HttpMethod.POST,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
+        project = projectRepository.findOneByName("c1p1");
+        Optional<Worker> workerOptional = project.gainWorkerByUserId(user.getId());
+        Assert.assertEquals(true, workerOptional.isPresent());
+    }
     // ----
     // ---
     // --
@@ -682,39 +724,285 @@ public class TimesheetApplicationTests {
     // --添加项目成员小时计费
     // ---成功
     // ----指定date
+    // -----覆盖原有日期记录
+    @Test
+    public void 项目_添加项目成员小时计费_成功_指定date_覆盖原有日期记录() {
+        User user = userRepository.findOneByUsernameEqualsIgnoreCase("u1");
+        Project project = projectRepository.findOneByName("c1p1");
+
+        HttpEntity<FactoryService.NewHourCostDto> request = new HttpEntity<>(new FactoryService.NewHourCostDto(
+                1000.0,
+                LocalDate.of(2000, 1, 20)
+        ));
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/project/" + project.getId() + "/addHourCostToProject/" + user.getId(),
+                HttpMethod.POST,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
+        project = projectRepository.findOneByName("c1p1");
+        Optional<Worker> workerOptional = project.gainWorkerByUserId(user.getId());
+        HourCost hourCost =  workerOptional.get().gainHourCosts().stream().filter(item -> item.getStartDate().isEqual(LocalDate.of(2000, 1, 20))).findFirst().get();
+        Assert.assertEquals(new Double(1000.0), hourCost.getAmount());
+    }
+    // -----
+    // -----不覆盖原有日期记录
+    @Test
+    public void 项目_添加项目成员小时计费_成功_指定date_不覆盖原有日期记录() {
+        User user = userRepository.findOneByUsernameEqualsIgnoreCase("u1");
+        Project project = projectRepository.findOneByName("c1p1");
+
+        HttpEntity<FactoryService.NewHourCostDto> request = new HttpEntity<>(new FactoryService.NewHourCostDto(
+                1000.0,
+                LocalDate.of(2100, 1, 1)
+        ));
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/project/" + project.getId() + "/addHourCostToProject/" + user.getId(),
+                HttpMethod.POST,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
+        project = projectRepository.findOneByName("c1p1");
+        Optional<Worker> workerOptional = project.gainWorkerByUserId(user.getId());
+        HourCost hourCost =  workerOptional.get().gainHourCosts().stream().filter(item -> item.getStartDate().isEqual(LocalDate.of(2100, 1, 1))).findFirst().get();
+        Assert.assertEquals(new Double(1000.0), hourCost.getAmount());
+    }
+    // -----
+
     // ----
     // ----不指定date
+    @Test
+    public void 项目_添加项目成员小时计费_成功_不指定date() {
+        User user = userRepository.findOneByUsernameEqualsIgnoreCase("u1");
+        Project project = projectRepository.findOneByName("c1p1");
+
+        HttpEntity<FactoryService.NewHourCostDto> request = new HttpEntity<>(new FactoryService.NewHourCostDto(
+                1000.0,
+               null
+        ));
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/project/" + project.getId() + "/addHourCostToProject/" + user.getId(),
+                HttpMethod.POST,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
+        project = projectRepository.findOneByName("c1p1");
+        Optional<Worker> workerOptional = project.gainWorkerByUserId(user.getId());
+        HourCost hourCost =  workerOptional.get().gainHourCosts().stream().filter(item -> item.getStartDate().isEqual(LocalDate.now())).findFirst().get();
+        Assert.assertEquals(new Double(1000.0), hourCost.getAmount());
+    }
     // ----
     // ---
     // --
 
     // --删除项目成员小时计费
     // ---成功
+    @Test
+    public void 项目_删除项目成员小时计费_成功() {
+        User user = userRepository.findOneByUsernameEqualsIgnoreCase("u1");
+        Project project = projectRepository.findOneByName("c1p1");
+
+        Optional<Worker> workerOptional = project.gainWorkerByUserId(user.getId());
+        HourCost hourCost =  workerOptional.get().gainHourCosts().stream().filter(item -> item.getStartDate().isEqual(LocalDate.of(2000, 1, 20))).findFirst().get();
+        Assert.assertEquals(new Double(6.0), hourCost.getAmount());
+
+        HttpEntity<String> request = new HttpEntity<>("");
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/project/" + project.getId() + "/removeHourCostFromProject/" + user.getId() + "/2000-01-20",
+                HttpMethod.POST,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
+        project = projectRepository.findOneByName("c1p1");
+        workerOptional = project.gainWorkerByUserId(user.getId());
+        Optional<HourCost> hourCostOptional =  workerOptional.get().gainHourCosts().stream().filter(item -> item.getStartDate().isEqual(LocalDate.of(2000, 1, 20))).findFirst();
+        Assert.assertEquals(false, hourCostOptional.isPresent());
+    }
     // ---
     // ---失败
     // ----指定日期的用户hourCost不存在
+    @Test
+    public void 项目_删除项目成员小时计费_失败_指定日期的用户hourCost不存在() {
+        User user = userRepository.findOneByUsernameEqualsIgnoreCase("u1");
+        Project project = projectRepository.findOneByName("c1p1");
+
+        Optional<Worker> workerOptional = project.gainWorkerByUserId(user.getId());
+        Optional<HourCost> hourCostOptional =  workerOptional.get().gainHourCosts().stream().filter(item -> item.getStartDate().isEqual(LocalDate.of(3000, 1, 1))).findFirst();
+        Assert.assertEquals(false, hourCostOptional.isPresent());
+
+        HttpEntity<String> request = new HttpEntity<>("");
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/project/" + project.getId() + "/removeHourCostFromProject/" + user.getId() + "/3000-01-01",
+                HttpMethod.POST,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+    }
     // ----
     // ---
     // --
 
-    // --添加项目成员佣金计费
+    // --添加项目成员小时佣金
     // ---成功
     // ----指定date
+    // -----覆盖原有日期记录
+    @Test
+    public void 项目_添加项目成员小时佣金_成功_指定date_覆盖原有日期记录() {
+        User user = userRepository.findOneByUsernameEqualsIgnoreCase("u1");
+        Project project = projectRepository.findOneByName("c1p1");
+
+        HttpEntity<FactoryService.NewHourCommissionDto> request = new HttpEntity<>(new FactoryService.NewHourCommissionDto(
+                1000.0,
+                LocalDate.of(2000, 1, 20)
+        ));
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/project/" + project.getId() + "/addHourCommissionToProject/" + user.getId(),
+                HttpMethod.POST,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
+        project = projectRepository.findOneByName("c1p1");
+        Optional<Worker> workerOptional = project.gainWorkerByUserId(user.getId());
+        HourCommission hourCommission =  workerOptional.get().gainHourCommissions().stream().filter(item -> item.getStartDate().isEqual(LocalDate.of(2000, 1, 20))).findFirst().get();
+        Assert.assertEquals(new Double(1000.0), hourCommission.getAmount());
+    }
+    // -----
+    // -----不覆盖原有日期记录
+    @Test
+    public void 项目_添加项目成员小时佣金_成功_指定date_不覆盖原有日期记录() {
+        User user = userRepository.findOneByUsernameEqualsIgnoreCase("u1");
+        Project project = projectRepository.findOneByName("c1p1");
+
+        HttpEntity<FactoryService.NewHourCommissionDto> request = new HttpEntity<>(new FactoryService.NewHourCommissionDto(
+                1000.0,
+                LocalDate.of(2100, 1, 1)
+        ));
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/project/" + project.getId() + "/addHourCommissionToProject/" + user.getId(),
+                HttpMethod.POST,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
+        project = projectRepository.findOneByName("c1p1");
+        Optional<Worker> workerOptional = project.gainWorkerByUserId(user.getId());
+        HourCommission hourCommission =  workerOptional.get().gainHourCommissions().stream().filter(item -> item.getStartDate().isEqual(LocalDate.of(2100, 1, 1))).findFirst().get();
+        Assert.assertEquals(new Double(1000.0), hourCommission.getAmount());
+    }
+    // -----
+
     // ----
     // ----不指定date
-    // ----
-    // ---
-    // ---失败
-    // ----添加非项目worker的hourCommission
+    @Test
+    public void 项目_添加项目成员小时佣金_成功_不指定date() {
+        User user = userRepository.findOneByUsernameEqualsIgnoreCase("u1");
+        Project project = projectRepository.findOneByName("c1p1");
+
+        HttpEntity<FactoryService.NewHourCommissionDto> request = new HttpEntity<>(new FactoryService.NewHourCommissionDto(
+                1000.0,
+                null
+        ));
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/project/" + project.getId() + "/addHourCommissionToProject/" + user.getId(),
+                HttpMethod.POST,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
+        project = projectRepository.findOneByName("c1p1");
+        Optional<Worker> workerOptional = project.gainWorkerByUserId(user.getId());
+        HourCommission hourCommission =  workerOptional.get().gainHourCommissions().stream().filter(item -> item.getStartDate().isEqual(LocalDate.now())).findFirst().get();
+        Assert.assertEquals(new Double(1000.0), hourCommission.getAmount());
+    }
     // ----
     // ---
     // --
 
-    // --删除项目成员佣金计费
+    // --删除项目成员小时佣金
     // ---成功
+    @Test
+    public void 项目_删除项目成员小时佣金_成功() {
+        User user = userRepository.findOneByUsernameEqualsIgnoreCase("u1");
+        Project project = projectRepository.findOneByName("c1p1");
+
+        Optional<Worker> workerOptional = project.gainWorkerByUserId(user.getId());
+        HourCommission hourCommission =  workerOptional.get().gainHourCommissions().stream().filter(item -> item.getStartDate().isEqual(LocalDate.of(2000, 1, 20))).findFirst().get();
+        Assert.assertEquals(new Double(3.0), hourCommission.getAmount());
+
+        HttpEntity<String> request = new HttpEntity<>("");
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/project/" + project.getId() + "/removeHourCommissionFromProject/" + user.getId() + "/2000-01-20",
+                HttpMethod.POST,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        // 清空当前repository以从数据库获取最新数据
+        entityManager.clear();
+        project = projectRepository.findOneByName("c1p1");
+        workerOptional = project.gainWorkerByUserId(user.getId());
+        Optional<HourCommission> hourCommissionOptional =  workerOptional.get().gainHourCommissions().stream().filter(item -> item.getStartDate().isEqual(LocalDate.of(2000, 1, 20))).findFirst();
+        Assert.assertEquals(false, hourCommissionOptional.isPresent());
+    }
     // ---
     // ---失败
     // ----指定日期的用户hourCommission不存在
+    @Test
+    public void 项目_删除项目成员小时佣金_失败_指定日期的用户hourCommission不存在() {
+        User user = userRepository.findOneByUsernameEqualsIgnoreCase("u1");
+        Project project = projectRepository.findOneByName("c1p1");
+
+        Optional<Worker> workerOptional = project.gainWorkerByUserId(user.getId());
+        Optional<HourCommission> hourCommissionOptional =  workerOptional.get().gainHourCommissions().stream().filter(item -> item.getStartDate().isEqual(LocalDate.of(3000, 1, 1))).findFirst();
+        Assert.assertEquals(false, hourCommissionOptional.isPresent());
+
+        HttpEntity<String> request = new HttpEntity<>("");
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/project/" + project.getId() + "/removeHourCommissionFromProject/" + user.getId() + "/3000-01-01",
+                HttpMethod.POST,
+                request,
+                String.class
+        );
+        Assert.assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+    }
     // ----
     // ---
     // --

@@ -139,9 +139,9 @@ public class MainController {
     }
 
     // 删除项目成员小时计费
-    @RequestMapping(value = "/project/{id}/removeHourCostFromProject/{userId}", method = RequestMethod.POST)
-    public String removeHourCostFromProject(@PathVariable Long id, @PathVariable Long userId, @PathVariable LocalDate date) {
-        factoryService.removeHourCost(id, userId, date);
+    @RequestMapping(value = "/project/{id}/removeHourCostFromProject/{userId}/{date}", method = RequestMethod.POST)
+    public String removeHourCostFromProject(@PathVariable Long id, @PathVariable Long userId, @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date) {
+        factoryService.removeHourCost(userId, id, date);
 
         return "ok";
     }
@@ -149,15 +149,15 @@ public class MainController {
     // 添加项目成员佣金计费
     @RequestMapping(value = "/project/{id}/addHourCommissionToProject/{userId}", method = RequestMethod.POST)
     public String addHourCommissionToProject(@PathVariable Long id, @PathVariable Long userId, @Valid @RequestBody FactoryService.NewHourCommissionDto dto) {
-        factoryService.addHourCommission(id, userId, dto);
+        factoryService.addHourCommission(userId, id, dto);
 
         return "ok";
     }
 
     // 删除项目成员佣金计费
-    @RequestMapping(value = "/project/{id}/removeHourCommissionFromProject/{userId}", method = RequestMethod.POST)
-    public String removeHourCommissionFromProject(@PathVariable Long id, @PathVariable Long userId, @PathVariable LocalDate date) {
-        factoryService.removeHourCommission(id, userId, date);
+    @RequestMapping(value = "/project/{id}/removeHourCommissionFromProject/{userId}/{date}", method = RequestMethod.POST)
+    public String removeHourCommissionFromProject(@PathVariable Long id, @PathVariable Long userId, @PathVariable @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date) {
+        factoryService.removeHourCommission(userId, id, date);
 
         return "ok";
     }

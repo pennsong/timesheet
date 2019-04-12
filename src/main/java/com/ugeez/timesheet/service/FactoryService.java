@@ -249,6 +249,13 @@ public class FactoryService {
 
     public void removeWorkerFromProject(Long id, Long userId) {
         Project project = gainEntityWithExistsChecking(Project.class, id);
+
+        // 如果这个user在这个项目已有工作记录则不允许删除
+        Long count = workRecordRepository.workRecordExist(id, userId);
+        if (count > 0) {
+            throw new RuntimeException("此用户已存在workRecord, 不能删除!");
+        }
+
         project.removeWorker(userId);
     }
 
